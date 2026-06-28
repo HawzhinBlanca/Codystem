@@ -1,19 +1,41 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { stat } from "node:fs/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
 import { statusForFiles } from "./status.js";
 import { findLedgers } from "./discover.js";
-import { incompleteTasks, findFeature } from "./query.js";
+import { incompleteTasks, findFeature, unknownFeatureMessage } from "./query.js";
+import { featureNameSchema } from "./validation.js";
+import { createCache } from "./cache.js";
 
 // Resolve specs/ relative to the built script (<root>/dist/mcp.js -> <root>/specs),
 // so the server works no matter what CWD it is launched from.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SPECS_DIR = resolve(ROOT, "specs");
 
+// Fingerprint = the ledger files' mtimes. Cheaper than re-reading + re-parsing every call,
+// and correct: a real ledger change bumps an mtime and invalidates the cache.
+async function fingerprint(): Promise<string> {
+  const paths = await findLedgers(SPECS_DIR);
+  const parts = await Promise.all(
+    paths.map((p) =>
+      stat(p).then(
+        (s) => `${p}:${s.mtimeMs}`,
+        () => `${p}:0`
+      )
+    )
+  );
+  return parts.join("|");
+}
+
+const summaryCache = createCache({
+  load: async () => statusForFiles(await findLedgers(SPECS_DIR)),
+  fingerprint,
+});
+
 async function currentSummary() {
-  return statusForFiles(await findLedgers(SPECS_DIR));
+  return summaryCache.get();
 }
 
 function jsonResult(data: unknown) {
@@ -37,21 +59,15 @@ server.registerTool(
   {
     title: "Feature status",
     description: "Status of one feature by directory name, e.g. '001-ledger-status'.",
-    inputSchema: { name: z.string().describe("Feature directory name or path") },
+    inputSchema: { name: featureNameSchema.describe("Feature directory name or path") },
   },
   async ({ name }) => {
     const summary = await currentSummary();
     const feature = findFeature(summary, name);
     if (!feature) {
-      const available = summary.features.map((f) => f.file);
       return {
         isError: true,
-        content: [
-          {
-            type: "text" as const,
-            text: `Unknown feature "${name}". Available: ${JSON.stringify(available)}`,
-          },
-        ],
+        content: [{ type: "text" as const, text: unknownFeatureMessage(summary, name) }],
       };
     }
     return jsonResult(feature);

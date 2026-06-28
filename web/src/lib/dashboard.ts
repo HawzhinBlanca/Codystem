@@ -30,8 +30,10 @@ function pct(done: number, total: number): number {
   return total === 0 ? 0 : Math.round((done / total) * 100);
 }
 
+// Clamp to a non-negative finite integer-ish count. Negative/NaN/non-number -> 0, so a
+// malformed payload can never produce a false "complete" (e.g. done=-5 >= total=-10).
 function num(v: unknown): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0;
 }
 
 // "specs/001-ledger-status/tasks.md" -> "001-ledger-status"
@@ -51,7 +53,7 @@ export function toDashboard(raw: unknown): DashboardModel {
   const features: FeatureView[] = list.map((entry) => {
     const f = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
     const total = num(f["total"]);
-    const done = num(f["done"]);
+    const done = Math.min(num(f["done"]), total); // done can never exceed total (keeps pct <= 100)
     const state: FeatureState = total === 0 ? "empty" : done >= total ? "complete" : "in-progress";
     const rawTasks = Array.isArray(f["tasks"]) ? (f["tasks"] as unknown[]) : [];
     const tasks = rawTasks.map((t) => {

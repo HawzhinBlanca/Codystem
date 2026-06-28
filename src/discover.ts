@@ -1,12 +1,13 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-/** "specs/001-ledger-status/tasks.md" -> "001-ledger-status" */
+/** "specs/001-ledger-status/tasks.md" -> "001-ledger-status". Always slash-free
+ * (degenerate inputs like "/" or "" return ""). */
 export function featureName(file: string): string {
   const parts = file.split("/").filter(Boolean);
   const i = parts.lastIndexOf("tasks.md");
-  if (i > 0) return parts[i - 1] ?? file;
-  return parts[parts.length - 1] ?? file;
+  if (i > 0) return parts[i - 1] ?? "";
+  return parts[parts.length - 1] ?? "";
 }
 
 /** Map feature directory names to sorted, de-duplicated `specs/<name>/tasks.md` paths. */

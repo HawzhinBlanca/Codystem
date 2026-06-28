@@ -44,4 +44,19 @@ describe("toDashboard", () => {
     expect(toDashboard({ features: "nope" }).features).toEqual([]);
     expect(toDashboard(undefined).complete).toBe(false);
   });
+
+  // AC1 (hardening): negative / NaN counts must clamp to 0 and never be "complete".
+  it("t-neg: negative/NaN counts clamp to 0 and are not 'complete'", () => {
+    const neg = toDashboard({
+      features: [{ file: "x/tasks.md", total: -10, done: -5, tasks: [] }],
+    });
+    expect(neg.features[0]?.state).not.toBe("complete");
+    expect(neg.features[0]?.total).toBeGreaterThanOrEqual(0);
+    expect(neg.features[0]?.done).toBeGreaterThanOrEqual(0);
+    const nan = toDashboard({
+      features: [{ file: "y/tasks.md", total: NaN, done: NaN, tasks: [] }],
+    });
+    expect(nan.features[0]?.state).toBe("empty");
+    expect(nan.percent).toBe(0);
+  });
 });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { incompleteTasks, findFeature } from "./query.js";
+import { incompleteTasks, findFeature, unknownFeatureMessage } from "./query.js";
 import type { Summary } from "./status.js";
 
 const SUMMARY: Summary = {
@@ -45,4 +45,14 @@ test("t-feat: findFeature matches by directory name with tolerant input", () => 
   assert.equal(findFeature(SUMMARY, "002-b/")?.done, 1);
   assert.equal(findFeature(SUMMARY, "specs/001-a/tasks.md")?.complete, true);
   assert.equal(findFeature(SUMMARY, "nope"), undefined);
+});
+
+// AC2 (security): the unknown-feature message must not leak paths/usernames and must bound input.
+test("t-leak: unknownFeatureMessage exposes only names, never paths, and bounds input", () => {
+  const msg = unknownFeatureMessage(SUMMARY, "nope");
+  assert.ok(!msg.includes("/"), "no path separators");
+  assert.ok(!msg.toLowerCase().includes("users"), "no home-dir leak");
+  assert.ok(msg.includes("001-a") && msg.includes("002-b"), "lists feature names");
+  const huge = unknownFeatureMessage(SUMMARY, "z".repeat(5000));
+  assert.ok(huge.length < 300, "echoed input is bounded");
 });
