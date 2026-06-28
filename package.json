@@ -1,25 +1,41 @@
 {
   "name": "codystem-status",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Machine-checkable progress reporter for CODYSTEM tasks.md ledgers",
+  "description": "Machine-checkable progress reporter for CODYSTEM tasks.md ledgers, with a web dashboard",
   "type": "module",
   "packageManager": "pnpm@10.12.1",
   "bin": {
     "codystem-status": "dist/cli.js"
   },
   "scripts": {
-    "lint": "prettier --check \"src/**/*.ts\"",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "typecheck": "tsc --noEmit",
-    "pretest": "tsc -p tsconfig.json",
-    "test": "node --test \"dist/**/*.test.js\"",
-    "build": "tsc -p tsconfig.json",
-    "status": "node dist/cli.js"
+    "lint": "prettier --check \"src/**/*.ts\" \"web/src/**/*.{ts,tsx}\"",
+    "format": "prettier --write \"src/**/*.ts\" \"web/src/**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p web/tsconfig.json",
+    "build:cli": "tsc -p tsconfig.json",
+    "build:data": "mkdir -p web/public/data && node dist/cli.js > web/public/data/status.json",
+    "build:web": "vite build",
+    "build": "pnpm run build:cli && pnpm run build:data && pnpm run build:web",
+    "test:cli": "tsc -p tsconfig.json && node --test \"dist/**/*.test.js\"",
+    "test:web": "vitest run",
+    "test": "pnpm run test:cli && pnpm run test:web",
+    "status": "node dist/cli.js",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.13",
     "@types/node": "^22.20.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
     "prettier": "^3.4.2",
-    "typescript": "^5.7.2"
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^3.0.5"
   }
 }
