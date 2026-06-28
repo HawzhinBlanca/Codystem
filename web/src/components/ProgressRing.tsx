@@ -38,7 +38,7 @@ export function ProgressRing({ percent, size = 188 }: { percent: number; size?: 
       </svg>
       <div className="absolute flex flex-col items-center">
         <div className="text-5xl font-bold tabular-nums text-slate-900 dark:text-white">
-          {Math.round(shown)}
+          {Math.round(clamped)}
           <span className="text-2xl text-slate-400">%</span>
         </div>
         <div className="mt-1 text-[11px] font-medium tracking-[0.2em] text-slate-500 uppercase dark:text-slate-400">
