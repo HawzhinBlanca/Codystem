@@ -3,6 +3,11 @@
 # "done" — never the agent. Portable across GNU (Linux/CI/devcontainer) and BSD (macOS)
 # sed by writing to a temp file instead of relying on `sed -i` suffix semantics.
 set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  echo "usage: scripts/update-ledger.sh <TASK> <TESTS>   (e.g. scripts/update-ledger.sh T1 t-ac1)" >&2
+  exit 2
+fi
 task="$1"; tests="$2"
 if bash scripts/verify.sh; then
   for f in specs/*/tasks.md; do
