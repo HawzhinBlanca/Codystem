@@ -28,3 +28,7 @@ The agent never marks done — the green check does.
 
 ## Honest ceiling
 This is risk reduction, not a 100% guarantee. Nothing merges unless mechanical checks pass.
+
+## Full research
+The complete, evidence-based research this harness distills is in
+[docs/blueprint-research.md](docs/blueprint-research.md).
