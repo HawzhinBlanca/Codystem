@@ -1,13 +1,21 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { stat } from "node:fs/promises";
+import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { statusForFiles } from "./status.js";
 import { findLedgers, resolveSpecsDir } from "./discover.js";
-import { incompleteTasks, findFeature, unknownFeatureMessage } from "./query.js";
+import {
+  incompleteTasks,
+  findFeature,
+  unknownFeatureMessage,
+  compactSummary,
+  limitTasks,
+} from "./query.js";
 import { featureNameSchema } from "./validation.js";
 import { createCache } from "./cache.js";
+import { createLimiter } from "./limit.js";
 
 // Specs dir: CODYSTEM_SPECS_DIR override (used by the stress harness for synthetic ledgers),
 // else <root>/specs resolved relative to the built script so CWD does not matter.
@@ -42,16 +50,20 @@ function jsonResult(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
 
+// Bound in-flight tool work so the latency tail stays flat under extreme client concurrency.
+const gate = createLimiter(64);
+
 const server = new McpServer({ name: "codystem-status", version: "0.2.0" });
 
 server.registerTool(
   "ledger_status",
   {
     title: "Ledger status",
-    description: "Aggregated CODYSTEM ledger progress (features, totals, percent, complete).",
+    description:
+      "Compact ledger overview (per-feature counts + overall totals; no per-task arrays).",
     inputSchema: {},
   },
-  async () => jsonResult(await currentSummary())
+  () => gate(async () => jsonResult(compactSummary(await currentSummary())))
 );
 
 server.registerTool(
@@ -61,27 +73,32 @@ server.registerTool(
     description: "Status of one feature by directory name, e.g. '001-ledger-status'.",
     inputSchema: { name: featureNameSchema.describe("Feature directory name or path") },
   },
-  async ({ name }) => {
-    const summary = await currentSummary();
-    const feature = findFeature(summary, name);
-    if (!feature) {
-      return {
-        isError: true,
-        content: [{ type: "text" as const, text: unknownFeatureMessage(summary, name) }],
-      };
-    }
-    return jsonResult(feature);
-  }
+  ({ name }) =>
+    gate(async () => {
+      const summary = await currentSummary();
+      const feature = findFeature(summary, name);
+      if (!feature) {
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: unknownFeatureMessage(summary, name) }],
+        };
+      }
+      return jsonResult(feature);
+    })
 );
 
 server.registerTool(
   "incomplete_tasks",
   {
     title: "Incomplete tasks",
-    description: "Every ledger task not yet done, as {feature, id, text}[].",
-    inputSchema: {},
+    description:
+      "Tasks not yet done, as {total, truncated, tasks:[{feature,id,text}]} (limit default 200).",
+    inputSchema: {
+      limit: z.number().int().min(1).max(10000).optional().describe("Max tasks to return"),
+    },
   },
-  async () => jsonResult(incompleteTasks(await currentSummary()))
+  ({ limit }) =>
+    gate(async () => jsonResult(limitTasks(incompleteTasks(await currentSummary()), limit ?? 200)))
 );
 
 const transport = new StdioServerTransport();

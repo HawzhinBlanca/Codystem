@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { incompleteTasks, findFeature, unknownFeatureMessage } from "./query.js";
+import {
+  incompleteTasks,
+  findFeature,
+  unknownFeatureMessage,
+  compactSummary,
+  limitTasks,
+} from "./query.js";
 import type { Summary } from "./status.js";
 
 const SUMMARY: Summary = {
@@ -55,4 +61,24 @@ test("t-leak: unknownFeatureMessage exposes only names, never paths, and bounds 
   assert.ok(msg.includes("001-a") && msg.includes("002-b"), "lists feature names");
   const huge = unknownFeatureMessage(SUMMARY, "z".repeat(5000));
   assert.ok(huge.length < 300, "echoed input is bounded");
+});
+
+// AC2: compact overview keeps counts, drops per-task arrays.
+test("t-compact: compactSummary keeps counts but drops per-task arrays", () => {
+  const c = compactSummary(SUMMARY);
+  assert.equal(c.totalTasks, SUMMARY.totalTasks);
+  assert.equal(c.totalDone, SUMMARY.totalDone);
+  assert.equal(c.features.length, SUMMARY.features.length);
+  assert.equal(c.features[0]?.total, SUMMARY.features[0]?.total);
+  assert.equal(c.features[0]?.complete, SUMMARY.features[0]?.complete);
+  assert.ok(!("tasks" in (c.features[0] as object)), "no per-task array on a compact feature");
+});
+
+// AC3: limitTasks caps and reports total/truncated.
+test("t-cap: limitTasks caps the list and reports total + truncated", () => {
+  assert.deepEqual(limitTasks([1, 2, 3, 4, 5], 3), { total: 5, truncated: true, tasks: [1, 2, 3] });
+  const all = limitTasks([1, 2, 3], 10);
+  assert.equal(all.total, 3);
+  assert.equal(all.truncated, false);
+  assert.deepEqual(all.tasks, [1, 2, 3]);
 });
