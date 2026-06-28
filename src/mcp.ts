@@ -4,15 +4,15 @@ import { stat } from "node:fs/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { statusForFiles } from "./status.js";
-import { findLedgers } from "./discover.js";
+import { findLedgers, resolveSpecsDir } from "./discover.js";
 import { incompleteTasks, findFeature, unknownFeatureMessage } from "./query.js";
 import { featureNameSchema } from "./validation.js";
 import { createCache } from "./cache.js";
 
-// Resolve specs/ relative to the built script (<root>/dist/mcp.js -> <root>/specs),
-// so the server works no matter what CWD it is launched from.
+// Specs dir: CODYSTEM_SPECS_DIR override (used by the stress harness for synthetic ledgers),
+// else <root>/specs resolved relative to the built script so CWD does not matter.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const SPECS_DIR = resolve(ROOT, "specs");
+const SPECS_DIR = resolveSpecsDir(process.env.CODYSTEM_SPECS_DIR, ROOT);
 
 // Fingerprint = the ledger files' mtimes. Cheaper than re-reading + re-parsing every call,
 // and correct: a real ledger change bumps an mtime and invalidates the cache.
