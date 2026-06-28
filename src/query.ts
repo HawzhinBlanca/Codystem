@@ -46,3 +46,44 @@ export function unknownFeatureMessage(summary: Summary, name: string): string {
   const echoed = name.slice(0, 64);
   return `Unknown feature "${echoed}". Available: ${names.join(", ")}`;
 }
+
+export interface CompactFeature {
+  file: string;
+  total: number;
+  done: number;
+  complete: boolean;
+}
+
+export interface CompactSummary {
+  features: CompactFeature[];
+  totalTasks: number;
+  totalDone: number;
+  percent: number;
+  complete: boolean;
+}
+
+/** Overview without per-task arrays: O(features) response instead of O(tasks). */
+export function compactSummary(summary: Summary): CompactSummary {
+  return {
+    features: summary.features.map((f) => ({
+      file: f.file,
+      total: f.total,
+      done: f.done,
+      complete: f.complete,
+    })),
+    totalTasks: summary.totalTasks,
+    totalDone: summary.totalDone,
+    percent: summary.percent,
+    complete: summary.complete,
+  };
+}
+
+/** Cap a list, reporting the true total and whether it was truncated. */
+export function limitTasks<T>(
+  items: T[],
+  limit: number
+): { total: number; truncated: boolean; tasks: T[] } {
+  const total = items.length;
+  const tasks = limit >= 0 && limit < total ? items.slice(0, limit) : items;
+  return { total, truncated: tasks.length < total, tasks };
+}

@@ -44,8 +44,8 @@ const unknown = await client.callTool({
 check("feature_status unknown name -> isError", unknown.isError === true);
 
 const inc = JSON.parse(text(await client.callTool({ name: "incomplete_tasks", arguments: {} })));
-check("incomplete_tasks returns an array", Array.isArray(inc));
-console.log(`  incomplete_tasks -> ${inc.length} task(s) outstanding`);
+check("incomplete_tasks returns {total, tasks[]}", Array.isArray(inc.tasks) && typeof inc.total === "number");
+console.log(`  incomplete_tasks -> ${inc.total} outstanding (returned ${inc.tasks.length})`);
 
 console.log(`\n=== load: ${TOTAL} calls @ concurrency ${CONCURRENCY} ===`);
 const plan = Array.from({ length: TOTAL }, (_, i) => {
