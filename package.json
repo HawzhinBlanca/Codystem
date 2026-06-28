@@ -23,6 +23,7 @@
     "status": "node dist/cli.js",
     "mcp": "node dist/mcp.js",
     "stress:mcp": "node bench/stress-mcp.mjs",
+    "stress:extended": "node bench/stress-extended.mjs",
     "dev": "vite"
   },
   "dependencies": {

@@ -1,5 +1,10 @@
 import { readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+
+/** Specs directory: the CODYSTEM_SPECS_DIR override if set/non-blank, else `<root>/specs`. */
+export function resolveSpecsDir(envDir: string | undefined, root: string): string {
+  return envDir && envDir.trim() ? resolve(envDir) : resolve(root, "specs");
+}
 
 /** "specs/001-ledger-status/tasks.md" -> "001-ledger-status". Always slash-free
  * (degenerate inputs like "/" or "" return ""). */
