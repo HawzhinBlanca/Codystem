@@ -12,6 +12,8 @@ scripts/stack.env
 node_modules/
 dist/
 build/
+web/dist/
+web/public/data/
 .venv/
 __pycache__/
 
@@ -21,3 +23,6 @@ __pycache__/
 .cache/
 # CocoIndex Code (ccc)
 /.cocoindex_code/
+
+# Local preview tooling
+.claude/launch.json
