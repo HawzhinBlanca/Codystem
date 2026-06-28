@@ -43,12 +43,30 @@ Before the harness is fully live you must wire it to a concrete stack:
 > `|| true` so it never blocks; the Stop hook will report non-zero until the stack is
 > configured. They become real gates the moment `verify.sh` has commands to run.
 
+## Apps
+
+This repo ships a small TypeScript app plus an MCP server and a web dashboard, all reading
+the same `specs/*/tasks.md` ledgers:
+
+- **CLI** — `pnpm run status` prints the progress JSON; `codystem-status --strict` exits 1 if
+  any ledger task is incomplete.
+- **MCP server** — `codystem-mcp` (`dist/mcp.js`, registered in `.mcp.json`) exposes three
+  read-only tools: `ledger_status`, `feature_status` (by name), `incomplete_tasks`. Build
+  first (`pnpm run build:cli`), then point any MCP client at `node dist/mcp.js`.
+  Stress-tested via `pnpm run stress:mcp` (spawns the server, runs correctness checks + a
+  concurrent load, reports throughput/latency).
+- **Dashboard** — live at **https://hawzhinblanca.github.io/Codystem/** (deployed by
+  `.github/workflows/pages.yml`). `pnpm run dev` for local development.
+
 ## Layout
 
 | Path | Purpose |
 |---|---|
 | `AGENTS.md` / `CLAUDE.md` | Operating rules (single source of truth + Claude bridge) |
-| `.mcp.json` | Serena (LSP grounding) MCP config |
+| `.mcp.json` | Serena (LSP) + `codystem-status` (this app's) MCP servers |
+| `src/` | CLI + MCP server + pure ledger/query logic (`codystem-status`) |
+| `web/` | React + Vite + Tailwind dashboard |
+| `bench/` | `stress-mcp.mjs` — MCP server stress/integration harness |
 | `.claude/settings.json` | Deterministic hooks (PreToolUse / PostToolUse / Stop) |
 | `.claude/skills/` | Research → Plan → Implement procedures |
 | `scripts/guard-pretooluse.sh` | Blocks protected paths & dangerous commands |
