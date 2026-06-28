@@ -6,7 +6,8 @@
   "type": "module",
   "packageManager": "pnpm@10.12.1",
   "bin": {
-    "codystem-status": "dist/cli.js"
+    "codystem-status": "dist/cli.js",
+    "codystem-mcp": "dist/mcp.js"
   },
   "scripts": {
     "lint": "prettier --check \"src/**/*.ts\" \"web/src/**/*.{ts,tsx}\"",
@@ -20,11 +21,15 @@
     "test:web": "vitest run",
     "test": "pnpm run test:cli && pnpm run test:web",
     "status": "node dist/cli.js",
+    "mcp": "node dist/mcp.js",
+    "stress:mcp": "node bench/stress-mcp.mjs",
     "dev": "vite"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.13",

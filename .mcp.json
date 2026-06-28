@@ -5,6 +5,10 @@
       "args": ["--from", "git+https://github.com/oraios/serena",
                "serena", "start-mcp-server",
                "--context", "ide-assistant", "--project", "."]
+    },
+    "codystem-status": {
+      "command": "node",
+      "args": ["dist/mcp.js"]
     }
   }
 }
