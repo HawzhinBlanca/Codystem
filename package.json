@@ -18,6 +18,7 @@
     "status": "node dist/cli.js"
   },
   "devDependencies": {
+    "@types/node": "^22.20.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2"
   }
