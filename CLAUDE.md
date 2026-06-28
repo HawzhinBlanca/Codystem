@@ -13,3 +13,8 @@ so all operating rules live there and are imported here.
   and Stop (full verify). These are deterministic guardrails — do not attempt to bypass.
 - Skills: `.claude/skills/{research,plan,implement}` encode the Research → Plan →
   Implement loop. Invoke them in order; the PLAN step stops for human approval.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
