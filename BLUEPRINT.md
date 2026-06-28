@@ -1,0 +1,30 @@
+# CODYSTEM Blueprint
+
+## What this is
+A lean, reliable AI-assisted coding system. Default agent: Claude Code.
+Default spec framework: GitHub Spec Kit. Reliability comes from 4 mechanisms,
+not from trusting the model:
+1. Small, high-signal context (Research → Plan → Implement; compact often; 40–60% context).
+2. Real-code grounding via Serena MCP (LSP symbol-level retrieval/editing).
+3. Deterministic gates the agent cannot bypass (Claude Code hooks + GitHub required checks).
+4. Human review of the PLAN before any code is written.
+
+## Options at each layer (pick per project)
+- Spec framework:  Spec Kit (default) | GSD (leaner) | BMAD v6 (team) | Kiro (IDE)
+- Grounding:       Serena (default, always) | + Augment (large/multi-repo, metered) | + Sourcegraph (Enterprise)
+- Memory:          repo markdown artifacts (default) | + Cognee (long projects)
+- Task tracking:   tasks.md ledger (default) | Taskmaster-AI (rich dependencies)
+
+## The loop
+RESEARCH  -> writes research.md (compacted map of files/symbols/data-flows). No code.
+PLAN      -> writes plan.md (architecture, file/symbol changes, tests). HUMAN APPROVES.
+IMPLEMENT -> smallest correct change per task; run verify.sh; flip ledger only if green.
+REVIEW    -> independent (different-model) review of the diff against the plan.
+
+## Definition of Done (mechanical)
+A task is done ONLY when: EARS criteria have passing tests; verify.sh passes locally
+in the devcontainer; the PR's required status checks are green; regression tests pass.
+The agent never marks done — the green check does.
+
+## Honest ceiling
+This is risk reduction, not a 100% guarantee. Nothing merges unless mechanical checks pass.

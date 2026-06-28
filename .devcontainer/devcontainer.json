@@ -1,0 +1,7 @@
+{
+  "name": "CODYSTEM",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "node",
+  "forwardPorts": [3000],
+  "postCreateCommand": "pnpm install --frozen-lockfile"
+}

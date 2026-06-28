@@ -1,0 +1,4 @@
+# Marks this directory as an isolated pnpm workspace root, so `pnpm install` / `pnpm run`
+# here never escape to a parent workspace (e.g. a pnpm-workspace.yaml in the home directory).
+# Single-package repo: only the root project, no sub-packages.
+packages: []

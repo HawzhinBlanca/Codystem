@@ -1,0 +1,21 @@
+# Secrets / env — never commit (see AGENTS.md hard boundaries)
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+
+# Local-only stack overrides for scripts/verify.sh
+scripts/stack.env
+
+# Dependencies / build output
+node_modules/
+dist/
+build/
+.venv/
+__pycache__/
+
+# Tooling / OS
+.DS_Store
+*.log
+.cache/
