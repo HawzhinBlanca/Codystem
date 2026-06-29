@@ -12,51 +12,42 @@ RESEARCH → PLAN → (human approves) → IMPLEMENT → REVIEW
                               required CI checks (source of truth for "done")
 ```
 
-## Status: scaffold
+## Status — live
 
-This repo currently contains **only the harness** — no application/feature code yet.
-Before the harness is fully live you must wire it to a concrete stack:
+The harness is fully wired to **Node 22 + pnpm 10 + TypeScript 5** and governs a real codebase:
+**8 features (001–008)** shipped through the Research → Plan → Implement loop, each via a PR that
+had to pass `scripts/verify.sh` (lint + typecheck + test + build — **47 tests**, including
+property/fuzz suites) and the required CI checks before merging.
 
-1. **Choose a stack** and fill in the command placeholders:
-   - `AGENTS.md` → the `Commands (exact)` block (every `<placeholder>` must be filled).
-   - `scripts/verify.sh` → set `LINT_CMD` / `TYPECHECK_CMD` / `TEST_CMD` / `BUILD_CMD`
-     (or create `scripts/stack.env`). Until configured, `verify.sh` **fails loudly**
-     on purpose — it never reports a false "VERIFY OK".
-   - `.github/workflows/ci.yml` and `.devcontainer/` → adjust the toolchain (the
-     example assumes Node 22 + pnpm; swap in `setup-python`/`setup-go`/etc. for other stacks).
-   - `.env.example` → list the env vars your app needs (copy to a git-ignored `.env`).
-2. **Create a GitHub remote and push** (`git remote add origin … && git push -u origin main`).
-   Branch protection and required status checks — the things that mechanically define
-   "done" — can only be configured on a repo that has a remote.
-3. **Make local == CI:** commit a lockfile (the CI/devcontainer use `--frozen-lockfile`,
-   which *fails without one*), install with `--frozen-lockfile`, and turn on branch
-   protection with the `verify` job as a *required* status check.
-   Benchmark to proceed: a deliberately broken PR is blocked from merging.
-4. **Run a feature through the loop** using the skills in `.claude/skills/`.
-   Review the *plan*, not the diff. A task is "done" only when `verify.sh` is green
-   and required CI checks pass — `scripts/update-ledger.sh` flips the ledger, the
-   agent never does.
+- **`main` is protected, and the gate is _required_** (`enforce_admins=true`): nothing merges
+  unless the required **`verify`** and **`stress`** status checks are green — not even an admin
+  can push past a red build. A deliberately broken PR was verified to be blocked.
+- **Local == CI:** a pinned `pnpm-lock.yaml`, `--frozen-lockfile`, a reproducible devcontainer,
+  and the *same* `scripts/verify.sh` run locally and in CI.
+- `scripts/update-ledger.sh` flips a `specs/*/tasks.md` task to done **only** after `verify.sh`
+  passes — the agent never marks "done" by hand.
 
-> **Note on hooks before a stack is wired:** `.claude/settings.json` runs `verify.sh`
-> on PostToolUse/Stop. Until you fill in the `*_CMD` values, those hooks will print
-> "✗ … not configured" — that is *expected*, not a bug. The PostToolUse hook uses
-> `|| true` so it never blocks; the Stop hook will report non-zero until the stack is
-> configured. They become real gates the moment `verify.sh` has commands to run.
+To run a new feature through the loop, use the skills in `.claude/skills/` (research → plan →
+implement); review the *plan*, not the diff.
 
 ## Apps
 
-This repo ships a small TypeScript app plus an MCP server and a web dashboard, all reading
-the same `specs/*/tasks.md` ledgers:
+Everything below was built through the harness and lives in this repo:
 
+- **Budget tracker** — the live product: a private, browser-only expense/budget tracker (log
+  expenses, set a monthly budget, see a category breakdown). Served at the Pages root:
+  **https://hawzhinblanca.github.io/Codystem/** (`web/`, deployed by `.github/workflows/pages.yml`).
+- **Project dashboard** — visualizes the `specs/*/tasks.md` ledgers (overall progress ring,
+  per-feature status, live CI badge). Now at
+  **https://hawzhinblanca.github.io/Codystem/status.html** (multi-page Vite build).
 - **CLI** — `pnpm run status` prints the progress JSON; `codystem-status --strict` exits 1 if
   any ledger task is incomplete.
 - **MCP server** — `codystem-mcp` (`dist/mcp.js`, registered in `.mcp.json`) exposes three
-  read-only tools: `ledger_status`, `feature_status` (by name), `incomplete_tasks`. Build
-  first (`pnpm run build:cli`), then point any MCP client at `node dist/mcp.js`.
-  Stress-tested via `pnpm run stress:mcp` (spawns the server, runs correctness checks + a
-  concurrent load, reports throughput/latency).
-- **Dashboard** — live at **https://hawzhinblanca.github.io/Codystem/** (deployed by
-  `.github/workflows/pages.yml`). `pnpm run dev` for local development.
+  read-only tools: `ledger_status`, `feature_status` (by name), `incomplete_tasks`. Build first
+  (`pnpm run build:cli`), then point any MCP client at `node dist/mcp.js`. Stress-tested via
+  `pnpm run stress:mcp` and `pnpm run stress:extended`.
+
+Local dev: `pnpm run dev` serves the budget app (with the dashboard at `/status.html`).
 
 ## Layout
 
@@ -65,8 +56,8 @@ the same `specs/*/tasks.md` ledgers:
 | `AGENTS.md` / `CLAUDE.md` | Operating rules (single source of truth + Claude bridge) |
 | `.mcp.json` | Serena (LSP) + `codystem-status` (this app's) MCP servers |
 | `src/` | CLI + MCP server + pure ledger/query logic (`codystem-status`) |
-| `web/` | React + Vite + Tailwind dashboard |
-| `bench/` | `stress-mcp.mjs` — MCP server stress/integration harness |
+| `web/` | React + Vite + Tailwind: budget tracker (main) + project dashboard (`/status.html`) |
+| `bench/` | `stress-mcp.mjs` + `stress-extended.mjs` — MCP stress/integration harnesses |
 | `.claude/settings.json` | Deterministic hooks (PreToolUse / PostToolUse / Stop) |
 | `.claude/skills/` | Research → Plan → Implement procedures |
 | `scripts/guard-pretooluse.sh` | Blocks protected paths & dangerous commands |
@@ -74,6 +65,6 @@ the same `specs/*/tasks.md` ledgers:
 | `scripts/update-ledger.sh` | Flips a task to done **only** if verify passes |
 | `specs/` | `constitution.md` + per-feature spec/plan/tasks/impact-map |
 | `docs/` | ARCHITECTURE, DECISIONS (ADRs), TESTING |
-| `.github/workflows/ci.yml` | CI that runs the *same* `verify.sh` |
+| `.github/workflows/` | `ci.yml` (the *required* `verify` gate), `stress.yml` (required `stress`), `pages.yml` (deploy) |
 | `.devcontainer/` | Reproducible env so local == CI |
 | `obsidian-vault/` | Human-facing mirror of specs/decisions/progress |
