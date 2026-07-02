@@ -28,10 +28,10 @@ here is backed by a shown gate-pass + proof, and T10 retrofits provenance.
 
 ## Phase 4 — drift detection + single source of truth
 - [x] T14 Doc drift check (scripts/drift-check.sh, wired as a verify.sh step): a backtick-quoted repo path in a living doc (AGENTS/README/BLUEPRINT/CLAUDE/docs) must exist, else exit 8 — proof: src/drift-check.test.ts (3/3); live: 7 living docs clean. Scoped off specs/plans (forward-refs) + vendored skill docs.
-- [ ] T15 Single source of truth (AGENTS.md canonical; contradiction check)
+- [x] T15 Single source of truth: AGENTS.md declared canonical (header) over README/BLUEPRINT; scripts/sot-check.sh asserts every `pnpm run <x>` the gate invokes exists in package.json (exit 10 otherwise) — proof: src/sot-check.test.ts (3/3, incl. real-repo consistency)
 
 ## Phase 5 — measurement
-- [ ] T16 Token/cost instrumentation (bench/metrics.jsonl)
+- [x] T16 Token instrumentation (honest): bench/tokens.mjs measures the real in-repo proxy — the status tool's output tokens, full vs compact (`compactSummary`): ~2475 → ~196 (**~92% fewer** for the overview). Report: bench/token-report.md. Explicitly does NOT fabricate per-agent-session token numbers (needs runtime telemetry the repo can't produce; stated, not invented).
 - [x] T17 Reliability benchmark (bench/reliability.mjs, `pnpm run bench:reliability`): a 10-attack red-team corpus vs the guardrails → **10/10 caught (100%)**, vs an audit-confirmed ~0% baseline. Report: bench/reliability-report.md. Gated at 100% by src/reliability.test.ts (1/1) so a guardrail regression fails the gate. Honest scope noted (enforcement catch-rate, not a full agent-in-loop rework study).
 - [x] T18 The bash guardrails are tested + gated: src/{guard,verify,anticheat,ledger-flip,validate-tests,provenance,provenance-check,plan-gate,grounding,drift-check,review-gate}.test.ts compile to dist/*.test.js and run via `pnpm run test` inside verify.sh inside CI — proof: verify.sh runs them (they were the whole point of finding H) and CI re-runs verify.sh on a clean runner.
-- [ ] T19 Honest claims: BLUEPRINT/README match measured reality (back or retract "10x")
+- [x] T19 Honest claims: BLUEPRINT now has a "Measured, not asserted" section citing the 10/10 reliability benchmark + token report, and a sharpened "Honest ceiling" (CI is the only un-fakeable gate; no per-session token number claimed). No unproven "10x/best" absolute remains — the docs were already honest; now they're backed by evidence. — proof: BLUEPRINT.md diff + drift-check green on the new bench/ references.

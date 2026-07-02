@@ -1,5 +1,10 @@
 # AGENTS.md — Operating rules for AI coding agents
 
+> **This file is the single source of truth for operating rules and gate commands.** If any
+> other doc (README, BLUEPRINT) disagrees with the commands here or with `scripts/verify.sh`,
+> this file and `verify.sh` win. `scripts/sot-check.sh` (codystem-10x T15) enforces that every
+> gate command `verify.sh` runs actually exists.
+
 ## Project
 codystem-status — a CODYSTEM reference harness with a TypeScript tool that reports
 `specs/*/tasks.md` ledger progress as JSON. Node 22 + pnpm 10 + TypeScript 5.

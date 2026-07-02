@@ -31,8 +31,20 @@ A task is done ONLY when: EARS criteria have passing tests; verify.sh passes loc
 in the devcontainer; the PR's required status checks are green; regression tests pass.
 The agent never marks done — the green check does.
 
+## Measured, not asserted (codystem-10x)
+A 37-agent adversarial audit found the harness's own guarantees were once mostly convention
+(30 confirmed defects — the gate was self-editable, the ledger wasn't proof, tests could be
+suppressed). Those are now closed and **measured**: `bench/reliability-report.md` records a
+10-attack red-team corpus caught **10/10 (100%)** vs an audit-confirmed ~0% baseline
+(`pnpm run bench:reliability`), and `bench/token-report.md` measures the tool's output-token
+proxy. No "10x / best" superiority is claimed beyond what these numbers support.
+
 ## Honest ceiling
 This is risk reduction, not a 100% guarantee. Nothing merges unless mechanical checks pass.
+The only un-fakeable gate is CI on a clean runner (see mechanism 3); an agent with an
+unrestricted shell can still find equivalents of any local guard bypass. Per-agent-session
+token accounting needs runtime telemetry the repo can't produce, so it isn't claimed as a
+number (see `bench/token-report.md`).
 
 ## Full research
 The complete, evidence-based research this harness distills is in
