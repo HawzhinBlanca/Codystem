@@ -22,7 +22,12 @@ if bash "${here}/verify.sh"; then
   # T8: the cited test ids must exist as real named tests (verify just proved they pass).
   bash "${here}/validate-tests.sh" "$tests"
   bash "${here}/ledger-flip.sh" "$feature" "$task"
-  echo "Ledger updated: ${feature}/${task} done (tests: ${tests}; verify.sh passed)."
+  # T10: record provenance so the status tool can tell a verified flip from a hand-forged [x].
+  # Written ONLY on this path, ONLY after verify + validate-tests + flip all succeeded.
+  printf 'TS=%s FEATURE=%s TASK=%s TESTS=%s VERIFY=pass\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$feature" "$task" "$tests" \
+    >> "${here}/../specs/${feature}/ledger.log"
+  echo "Ledger updated: ${feature}/${task} done (tests: ${tests}; verify.sh passed; provenance recorded)."
 else
   echo "REFUSED: verify.sh failed; ${feature}/${task} stays open." >&2
   exit 1

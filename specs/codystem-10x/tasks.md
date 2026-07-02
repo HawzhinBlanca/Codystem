@@ -18,8 +18,8 @@ here is backed by a shown gate-pass + proof, and T10 retrofits provenance.
 ## Phase 2 — ledger = real proof
 - [x] T7 Feature-scoped, exact-match ledger flip (scripts/ledger-flip.sh; update-ledger.sh now `<feature> <TASK> <TESTS>`) — proof: src/ledger-flip.test.ts (3/3): no cross-feature, no T1/T10 bleed
 - [x] T8 Validate the <TESTS> arg (scripts/validate-tests.sh: each cited t-<id> must exist as a named test; verify already proved it passes) wired into update-ledger.sh — proof: src/validate-tests.test.ts (4/4), live bogus id → exit 5 REFUSED
-- [ ] T9 Lock tasks.md checkboxes (only update-ledger.sh may flip [ ]->[x])
-- [ ] T10 Provenance-backed status (ledger.log; forged [x] => "unverified")
+- [x] T9 Enforce checkbox integrity via detection (guard is content-blind, so prevention is impossible): scripts/provenance-check.sh FAILS a feature with a done [x] lacking provenance — proof: src/provenance-check.test.ts (3/3, exit 6). Opt-in CI check per provenance-using feature.
+- [x] T10 Provenance-backed status (update-ledger.sh writes specs/<feature>/ledger.log; src/provenance.ts classifies a done [x] with no record as UNVERIFIED, surfaced as `unverified[]` in the status JSON) — proof: src/provenance.test.ts (4/4); live: status now honestly flags all 9 features' pre-provenance [x] rows as unverified
 
 ## Phase 3 — enforce the loop
 - [ ] T11 Plan-gate: block impl edits without an approved plan.md
