@@ -5,8 +5,13 @@ A lean, reliable AI-assisted coding system. Default agent: Claude Code.
 Default spec framework: GitHub Spec Kit. Reliability comes from 4 mechanisms,
 not from trusting the model:
 1. Small, high-signal context (Research → Plan → Implement; compact often; 40–60% context).
-2. Real-code grounding via Serena MCP (LSP symbol-level retrieval/editing).
-3. Deterministic gates the agent cannot bypass (Claude Code hooks + GitHub required checks).
+2. Real-code grounding via Serena MCP (LSP symbol-level retrieval/editing) — a practice, not
+   yet a hook-enforced mechanism (see codystem-10x T12).
+3. The un-fakeable gate is **CI on a clean runner** (required status checks): it re-runs
+   `verify.sh` + the anti-cheat / provenance / drift scans from committed source, where the
+   agent has no shell to subvert. **Local Claude Code hooks are best-effort fast feedback and
+   tamper-resistance (codystem-10x Phase 0), NOT an un-bypassable boundary** — an agent with an
+   unrestricted Bash tool can run arbitrary code, so the honest boundary is CI, not the hook.
 4. Human review of the PLAN before any code is written.
 
 ## Options at each layer (pick per project)
