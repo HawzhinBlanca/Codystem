@@ -9,7 +9,7 @@
 // classes SUCCEEDED before codystem-10x (30 defects). This measures the after.
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -109,6 +109,48 @@ const cases = [
       bash(["scripts/review-gate-check.sh", "--messages"], {
         input: "feat: sneaky\n\nCo-Authored-By: me\n",
       }).status === 9,
+  },
+
+  // --- codystem-to-10of10 D1: attacks on the CLEAN-RUNNER GATE (not the tripwire). These are
+  //     cheats designed to survive a clean checkout / non-hook path; each must be caught by a
+  //     gate step that CI re-runs from committed source. ---
+  {
+    area: "clean-gate",
+    attack: "test self-skips under CI env ( if(process.env.CI) return )",
+    caught: () =>
+      withTmp((dir) => {
+        const f = join(dir, "x.test.ts");
+        writeFileSync(f, "test('x', () => { if (process.env.CI) return; });\n");
+        return bash(["scripts/anticheat-scan.sh", f]).status === 4;
+      }),
+  },
+  {
+    area: "clean-gate",
+    attack: "rewrite an enforcement file via a non-hook path (caught by surface-integrity)",
+    caught: () =>
+      withTmp((dir) => {
+        mkdirSync(join(dir, "scripts"), { recursive: true });
+        writeFileSync(join(dir, "scripts", "a.sh"), "echo ok\n");
+        const env = {
+          ...process.env,
+          SURFACE_ROOT: dir,
+          SURFACE_MANIFEST: join(dir, "m.sha256"),
+          SURFACE_FILES: "scripts/a.sh",
+        };
+        bash(["scripts/surface-integrity.sh", "--write"], { env });
+        appendFileSync(join(dir, "scripts", "a.sh"), "exit 0 # tampered\n");
+        return bash(["scripts/surface-integrity.sh"], { env }).status === 11;
+      }),
+  },
+  {
+    area: "clean-gate",
+    attack: "commit a stack.env gate-neuter (can't reach a clean checkout: gitignored)",
+    caught: () => bash(["-c", "git check-ignore scripts/stack.env"]).status === 0,
+  },
+  {
+    area: "clean-gate",
+    attack: "commit a stale build artifact to dodge the build (dist gitignored + build regenerates)",
+    caught: () => bash(["-c", "git check-ignore dist"]).status === 0,
   },
 ];
 
