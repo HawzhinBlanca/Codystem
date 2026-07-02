@@ -66,6 +66,18 @@ test("t-surf3: missing manifest fails loudly", () => {
   });
 });
 
+test("t-surf5: a listed enforcement file that is MISSING fails loudly (exit 11), not a silent abort", () => {
+  // PR #17 review fix: c.sh is listed but never created, and it is LAST — which used to make
+  // `[[ -f ]] && sha` return false and, under `set -euo pipefail`, silently abort --write with a
+  // truncated manifest. A missing enforcement file is tampering (deletion) and must fail loudly.
+  withSurface((_d, env, _run) => {
+    const env3 = { ...env, SURFACE_FILES: "scripts/a.sh scripts/b.sh scripts/c.sh" };
+    const write = spawnSync("bash", [SI, "--write"], { cwd: ROOT, encoding: "utf8", env: env3 });
+    assert.equal(write.status, 11, "missing file must fail --write, not truncate");
+    assert.match(write.stderr, /missing/);
+  });
+});
+
 test("t-surf4: the REAL repo surface matches its committed manifest", () => {
   const res = spawnSync("bash", [SI], { cwd: ROOT, encoding: "utf8" });
   assert.equal(res.status, 0, res.stderr);

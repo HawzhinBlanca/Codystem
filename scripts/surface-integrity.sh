@@ -30,9 +30,24 @@ fi
 
 # Portable sha256 (sha256sum on Linux/CI, shasum -a 256 on macOS) — identical "<hash>  <file>".
 sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi; }
-hash_all() { for f in "${files[@]}"; do [[ -f "$f" ]] && sha "$f"; done | sort; }
+# A MISSING enforcement file is itself tampering (a deletion), and silently omitting it from the
+# hash would let a delete slip past the manifest. So fail LOUDLY on any absence — never skip. (This
+# also removes a `set -euo pipefail` foot-gun: `[[ -f "$f" ]] && sha "$f"` returning false on the
+# last file used to abort the whole pipeline with no diagnostic and write a truncated manifest.)
+require_all_present() {
+  local f rc=0
+  for f in "${files[@]}"; do
+    if [[ ! -f "$f" ]]; then
+      echo "SURFACE FAIL: enforcement file missing (deleted/tampered?): $f" >&2
+      rc=11
+    fi
+  done
+  return "$rc"
+}
+hash_all() { local f; for f in "${files[@]}"; do sha "$f"; done | sort; }
 
 if [[ "${1:-}" == "--write" ]]; then
+  require_all_present || exit 11
   hash_all > "$manifest"
   echo "wrote $manifest (${#files[@]} enforcement files)"
   exit 0
@@ -43,6 +58,7 @@ if [[ ! -f "$manifest" ]]; then
   exit 11
 fi
 
+require_all_present || exit 11
 if diff <(hash_all) "$manifest" >/dev/null 2>&1; then
   echo "surface-integrity: OK (${#files[@]} enforcement files match the manifest)"
   exit 0

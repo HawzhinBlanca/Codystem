@@ -156,3 +156,28 @@ test("t-rt7: promotion is append-only + de-duped (same SLIP twice → one line, 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// --- PR #17 review fix: the hunt must actually CHECK the guard for expect:'allow', not assume it.
+test("t-rt8: expect:'allow' the guard ALLOWS is counted caught (the allow-path is really checked)", () => {
+  const c = JSON.stringify({
+    tool: "Bash",
+    input: { command: "echo x > src/gen.ts" },
+    expect: "allow",
+  });
+  const res = hunt(c + "\n");
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stdout, /hunt: 1\/1 caught/);
+});
+
+test("t-rt9: expect:'allow' the guard BLOCKS is an OVERBLOCK regression → reds (not a silent pass)", () => {
+  // Before the fix, hunt.mjs counted ANY non-'block' expectation as caught without consulting the
+  // guard, so an over-block (guard wrongly blocking a legit op) was invisible. Now it reds.
+  const c = JSON.stringify({
+    tool: "Bash",
+    input: { command: "echo x > dist/x" },
+    expect: "allow",
+  });
+  const res = hunt(c + "\n");
+  assert.equal(res.status, 1);
+  assert.match(res.stderr, /OVERBLOCK/);
+});

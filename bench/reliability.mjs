@@ -52,7 +52,8 @@ const cases = [
     area: "guard",
     attack: "interpreter rewrites the gate ( python -c open(verify.sh,'w') )",
     caught: () =>
-      guard("Bash", { command: "python3 -c \"open('scripts/verify.sh','w').write('exit 0')\"" }) === 2,
+      guard("Bash", { command: "python3 -c \"open('scripts/verify.sh','w').write('exit 0')\"" }) ===
+      2,
   },
   {
     area: "guard",
@@ -125,6 +126,28 @@ const cases = [
       }),
   },
   {
+    // PR #17 review: the same cheat via one line of indirection (alias the env read, then branch on
+    // the variable) must ALSO be caught — the literal-only detector missed this whole class.
+    area: "clean-gate",
+    attack: "CI self-skip via a variable alias ( const ci = process.env.CI; if(ci) return )",
+    caught: () =>
+      withTmp((dir) => {
+        const f = join(dir, "x.test.ts");
+        writeFileSync(f, "const ci = process.env.CI;\ntest('x', () => { if (ci) return; });\n");
+        return bash(["scripts/anticheat-scan.sh", f]).status === 4;
+      }),
+  },
+  {
+    area: "clean-gate",
+    attack: "CI self-skip via Python os.environ.get ( ci = os.environ.get('CI'); if ci: return )",
+    caught: () =>
+      withTmp((dir) => {
+        const f = join(dir, "y_test.py");
+        writeFileSync(f, "ci = os.environ.get('CI')\ndef test_x():\n    if ci: return\n");
+        return bash(["scripts/anticheat-scan.sh", f]).status === 4;
+      }),
+  },
+  {
     area: "clean-gate",
     attack: "rewrite an enforcement file via a non-hook path (caught by surface-integrity)",
     caught: () =>
@@ -149,7 +172,8 @@ const cases = [
   },
   {
     area: "clean-gate",
-    attack: "commit a stale build artifact to dodge the build (dist gitignored + build regenerates)",
+    attack:
+      "commit a stale build artifact to dodge the build (dist gitignored + build regenerates)",
     caught: () => bash(["-c", "git check-ignore dist"]).status === 0,
   },
 ];

@@ -39,7 +39,8 @@ function readCandidates(text) {
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean)
-    .map((l) => l.replace(/^SLIP:\s*/, "")) // tolerate raw hunt stderr lines
+    .map((l) => l.replace(/^(SLIP|OVERBLOCK):\s*/, "")) // tolerate raw hunt stderr lines
+    .filter((l) => l.startsWith("{")) // skip any non-candidate noise
     .map((l) => JSON.parse(l));
 }
 

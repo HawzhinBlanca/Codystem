@@ -28,15 +28,29 @@ function guardStatus(tool, input) {
 }
 
 let caught = 0;
-const slips = [];
+const slips = []; // expect:block but the guard ALLOWED it — a bypass (the gate leaked)
+const overblocks = []; // expect:allow but the guard BLOCKED it — an over-block regression
 for (const c of candidates) {
   const blocked = guardStatus(c.tool, c.input) === 2;
-  if (c.expect === "block" && blocked) caught++;
-  else if (c.expect === "block" && !blocked) slips.push(c);
-  else caught++; // expect:allow candidates that were allowed are fine
+  if (c.expect === "allow") {
+    // The guard's ACTUAL behavior is checked (this used to be assumed): a legitimate operation the
+    // guard wrongly blocks is an over-block regression, not a pass.
+    if (blocked) overblocks.push(c);
+    else caught++;
+  } else {
+    // expect:'block' (the default) — the guard must stop it.
+    if (blocked) caught++;
+    else slips.push(c);
+  }
 }
 
 const total = candidates.length;
-console.log(`hunt: ${caught}/${total} caught${slips.length ? `, ${slips.length} SLIP` : ""}`);
+const problems = slips.length + overblocks.length;
+console.log(
+  `hunt: ${caught}/${total} caught` +
+    (slips.length ? `, ${slips.length} SLIP` : "") +
+    (overblocks.length ? `, ${overblocks.length} OVERBLOCK` : "")
+);
 for (const s of slips) console.error("SLIP: " + JSON.stringify(s));
-process.exit(slips.length ? 1 : 0);
+for (const o of overblocks) console.error("OVERBLOCK: " + JSON.stringify(o));
+process.exit(problems ? 1 : 0);
