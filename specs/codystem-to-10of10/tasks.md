@@ -21,9 +21,9 @@ the software + tests and prove what's provable locally; the owner wires the acco
 
 ## Phase D — red-team the RIGHT boundary, continuously
 - [x] D1 Corpus attacks the CLEAN-RUNNER gate (stack.env-neuter-survives-checkout, CI-only self-skip, committed-artifact-dodge, non-hook tool path) → expected CI RED — proof: each cheat caught
-- [ ] D2 Externalized append-only corpus + deterministic adversarial generator + auto-triage/quarantine/promote — proof: fault-injection → loop discovers+promotes+reds the gate
+- [x] D2 Externalized append-only corpus + deterministic adversarial generator + auto-triage/quarantine/promote — proof: fault-injection → loop discovers+promotes+reds the gate
   - [x] D2a deterministic seeded generator (`bench/redteam/generate.mjs`) + hunt (`bench/redteam/hunt.mjs`) + fault-injection proof (`src/redteam.test.ts`: same-seed→byte-identical, 60/60 caught, planted SLIP→exit 1). Scoped to hard-protected paths (unconditional block); enforcement-path contract is conditional and covered by guard.test.ts + surface-integrity.
-  - [ ] D2b externalized append-only corpus file + auto-triage/quarantine/promote of a discovered SLIP into the permanent corpus
+  - [x] D2b externalized append-only corpus (`bench/redteam/corpus.jsonl`, 40 cases) + auto-promote (`bench/redteam/promote.mjs`, append-only + de-duped). Proof (`src/redteam.test.ts` t-rt5..7): corpus regression 0 SLIP; fault-injection → hunt DISCOVERS → promote APPENDS → re-hunt REDS; promotion idempotent. Caught a real dedup bug (array replacer stripped nested keys) before ship.
 - [ ] D3 Continuous hunts (nightly+PR) + dashboard — proof: ≥8 rolling runs, 100% catch, corpus↑, discovery-slope≤0, MTTC finite
 
 ## Phase E — measured reliability (the A/B study)  [needs-compute for trials]

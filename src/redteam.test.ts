@@ -1,7 +1,7 @@
 // Tests for the living red-team (codystem-to-10of10 D2): deterministic generator + hunt.
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, join } from "node:path";
@@ -70,6 +70,88 @@ test("t-rt4: mixing a real attack with the planted slip still reds (one bad appl
     );
     const res = spawnSync("node", [HUNT, f], { cwd: ROOT, encoding: "utf8" });
     assert.equal(res.status, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// --- D2b: externalized append-only corpus + auto-promote of discovered SLIPs ---
+const PROMOTE = "bench/redteam/promote.mjs";
+
+test("t-rt5: the committed regression corpus is fully caught (0 SLIP keeps the gate green)", () => {
+  const res = spawnSync("node", [HUNT, "bench/redteam/corpus.jsonl"], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+  assert.equal(res.status, 0, res.stderr);
+});
+
+test("t-rt6: fault-injection → the loop DISCOVERS, PROMOTES, and the promoted case REDS the gate", () => {
+  const dir = mkdtempSync(join(tmpdir(), "corpus-"));
+  try {
+    const corpus = join(dir, "corpus.jsonl");
+    const env = { ...process.env, CORPUS: corpus };
+    // Seed the corpus with a known-caught attack (green on its own).
+    writeFileSync(
+      corpus,
+      JSON.stringify({ tool: "Bash", input: { command: ": > dist/x" }, expect: "block" }) + "\n"
+    );
+    // Plant a fault: a candidate the guard ALLOWS but that expects a block (a fresh "bypass").
+    const fault = join(dir, "cand.jsonl");
+    writeFileSync(
+      fault,
+      JSON.stringify({
+        tool: "Bash",
+        input: { command: "echo x > /tmp/red-team-fault" },
+        expect: "block",
+      }) + "\n"
+    );
+
+    // 1) DISCOVER — hunt the fault → SLIP, exit 1, SLIP line on stderr.
+    const disc = spawnSync("node", [HUNT, fault], { cwd: ROOT, encoding: "utf8" });
+    assert.equal(disc.status, 1, "fault must be discovered as a SLIP");
+    assert.match(disc.stderr, /SLIP/);
+
+    // 2) PROMOTE — feed the discovered SLIP straight into the corpus (append-only).
+    const slips = join(dir, "slips.txt");
+    writeFileSync(slips, disc.stderr);
+    const prom = spawnSync("node", [PROMOTE, slips], { cwd: ROOT, encoding: "utf8", env });
+    assert.equal(prom.status, 0, prom.stderr);
+    assert.match(prom.stdout, /promote: 1 new/);
+    assert.match(readFileSync(corpus, "utf8"), /red-team-fault/, "corpus grew with the fault");
+
+    // 3) REDS — re-hunting the corpus now reds the gate until the underlying bypass is fixed.
+    const regr = spawnSync("node", [HUNT, corpus], { cwd: ROOT, encoding: "utf8", env });
+    assert.equal(regr.status, 1, "the promoted case must keep reding the gate");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("t-rt7: promotion is append-only + de-duped (same SLIP twice → one line, prior lines kept)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "corpus-"));
+  try {
+    const corpus = join(dir, "corpus.jsonl");
+    const env = { ...process.env, CORPUS: corpus };
+    const seed = JSON.stringify({
+      tool: "Bash",
+      input: { command: ": > dist/x" },
+      expect: "block",
+    });
+    writeFileSync(corpus, seed + "\n");
+    const slips = join(dir, "s.txt");
+    writeFileSync(
+      slips,
+      "SLIP: " +
+        JSON.stringify({ tool: "Bash", input: { command: "echo x > /tmp/z" }, expect: "block" }) +
+        "\n"
+    );
+    const run = () => spawnSync("node", [PROMOTE, slips], { cwd: ROOT, encoding: "utf8", env });
+    assert.match(run().stdout, /promote: 1 new/); // first promotion adds it
+    assert.match(run().stdout, /promote: 0 new/); // idempotent — already present
+    const lines = readFileSync(corpus, "utf8").trim().split("\n");
+    assert.equal(lines.length, 2, "seed + exactly one promoted line");
+    assert.match(lines[0] ?? "", /dist\/x/, "the original line is preserved (append-only)");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
