@@ -24,6 +24,7 @@
     "mcp": "node dist/mcp.js",
     "stress:mcp": "node bench/stress-mcp.mjs",
     "stress:extended": "node bench/stress-extended.mjs",
+    "bench:reliability": "node bench/reliability.mjs",
     "dev": "vite"
   },
   "dependencies": {

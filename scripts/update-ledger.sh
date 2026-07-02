@@ -1,21 +1,34 @@
 #!/usr/bin/env bash
-# Flips a tasks.md row to [x] ONLY if scripts/verify.sh passes. The check decides
-# "done" — never the agent. Portable across GNU (Linux/CI/devcontainer) and BSD (macOS)
-# sed by writing to a temp file instead of relying on `sed -i` suffix semantics.
+# Flips ONE feature's tasks.md row to [x] ONLY if scripts/verify.sh passes. The check
+# decides "done" — never the agent.
+#
+# codystem-10x T7: now feature-scoped and exact-match (via scripts/ledger-flip.sh). The old
+# version flipped `<TASK>` in EVERY specs/*/tasks.md at once (features reuse T1..T4), silently
+# marking unrelated features done. The flip logic is factored into ledger-flip.sh so it is
+# unit-tested (src/ledger-flip.test.ts) without running the full gate.
 set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
 
-if [[ $# -lt 2 ]]; then
-  echo "usage: scripts/update-ledger.sh <TASK> <TESTS>   (e.g. scripts/update-ledger.sh T1 t-ac1)" >&2
+if [[ $# -lt 3 ]]; then
+  echo "usage: scripts/update-ledger.sh <feature> <TASK> <TESTS>" >&2
+  echo "   e.g. scripts/update-ledger.sh codystem-10x T1 t-ac1" >&2
   exit 2
 fi
-task="$1"; tests="$2"
-if bash scripts/verify.sh; then
-  for f in specs/*/tasks.md; do
-    [ -e "$f" ] || continue
-    tmp="$(mktemp)"
-    sed "s/- \[ \] ${task} /- [x] ${task} /" "$f" > "$tmp" && mv "$tmp" "$f"
-  done
-  echo "Ledger updated: ${task} done (tests: ${tests}; verify.sh passed)."
+feature="$1"
+task="$2"
+tests="$3"
+
+if bash "${here}/verify.sh"; then
+  # T8: the cited test ids must exist as real named tests (verify just proved they pass).
+  bash "${here}/validate-tests.sh" "$tests"
+  bash "${here}/ledger-flip.sh" "$feature" "$task"
+  # T10: record provenance so the status tool can tell a verified flip from a hand-forged [x].
+  # Written ONLY on this path, ONLY after verify + validate-tests + flip all succeeded.
+  printf 'TS=%s FEATURE=%s TASK=%s TESTS=%s VERIFY=pass\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$feature" "$task" "$tests" \
+    >> "${here}/../specs/${feature}/ledger.log"
+  echo "Ledger updated: ${feature}/${task} done (tests: ${tests}; verify.sh passed; provenance recorded)."
 else
-  echo "REFUSED: verify.sh failed; ${task} stays open."; exit 1
+  echo "REFUSED: verify.sh failed; ${feature}/${task} stays open." >&2
+  exit 1
 fi

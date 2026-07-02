@@ -29,3 +29,6 @@ __pycache__/
 
 # Serena MCP local project cache
 /.serena/
+
+# codystem-10x T2: audited escape-hatch sentinel for enforcement-file self-edits (never commit)
+.codystem-allow-self-edit

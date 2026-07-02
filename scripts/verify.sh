@@ -18,10 +18,34 @@ BUILD_CMD="${BUILD_CMD:-pnpm run build}"          # tsc -> dist
 # -----------------------------------------------------------------------------
 
 # Optional, git-ignored per-machine / per-project overrides for the *_CMD values.
+# stack.env is for real per-machine values (e.g. a DB URL), NOT for neutering the gate.
 _here="$(cd "$(dirname "$0")" && pwd)"
 if [[ -f "${_here}/stack.env" ]]; then
   # shellcheck disable=SC1091
   source "${_here}/stack.env"
+fi
+
+# --- Anti-cheat (codystem-10x T4): refuse a no-op gate command ---------------
+# A *_CMD that resolves to empty / `true` / `:` would make the gate print "VERIFY OK"
+# while running NOTHING (the `echo TEST_CMD=true > scripts/stack.env` cheat). Refuse
+# loudly BEFORE running anything. Only the commands that will actually run are checked
+# (test/build are skipped in --fast). CI runs this same script on a clean checkout, so the
+# refusal holds there regardless of a local stack.env.
+_noop_check() {
+  local name="$1" val="$2"
+  local trimmed
+  trimmed="$(printf '%s' "$val" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  case "$trimmed" in
+    "" | ":" | "true" | "/bin/true" | "/usr/bin/true")
+      echo "REFUSED: ${name} resolves to a no-op ('${trimmed}') — the gate would pass while running nothing. Set a real command." >&2
+      exit 3 ;;
+  esac
+}
+_noop_check "LINT_CMD" "${LINT_CMD}"
+_noop_check "TYPECHECK_CMD" "${TYPECHECK_CMD}"
+if [[ "${FAST}" != "--fast" ]]; then
+  _noop_check "TEST_CMD" "${TEST_CMD}"
+  _noop_check "BUILD_CMD" "${BUILD_CMD}"
 fi
 
 run_step() {
@@ -35,6 +59,11 @@ run_step() {
 }
 
 fail=0
+# Anti-cheat scan (T5) runs first and always (fast + full): a suppressed test (.only/.skip/
+# xit/.todo) must never let the gate pass. Cheap (grep over tracked test files).
+run_step "anti-cheat" "ANTICHEAT" "bash '${_here}/anticheat-scan.sh'" || fail=1
+# Drift (T14): living docs must not cite files that no longer exist. Cheap grep.
+run_step "drift"      "DRIFT"      "bash '${_here}/drift-check.sh'" || fail=1
 run_step "lint"      "LINT_CMD"      "${LINT_CMD}"      || fail=1
 run_step "typecheck" "TYPECHECK_CMD" "${TYPECHECK_CMD}" || fail=1
 if [[ "${FAST}" != "--fast" ]]; then

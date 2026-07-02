@@ -12,7 +12,7 @@ description: Phase 3 of the CODYSTEM loop. Implement ONE approved task test-firs
 
 Plan approved. Implement only task `T1` from `tasks.md` — smallest correct change,
 test-first. Edit via Serena symbolic edits. Then run `bash scripts/verify.sh`. If it exits
-0, run `scripts/update-ledger.sh T1 t-ac1`. If it fails, fix and re-run; do NOT mark done
+0, run `scripts/update-ledger.sh <feature> T1 t-ac1`. If it fails, fix and re-run; do NOT mark done
 until green. Keep context under 50%; compact progress into `plan.md` before the next task.
 
 (Repeat per task: `T2`, `T3`, … each with its own test IDs.)
@@ -25,7 +25,7 @@ until green. Keep context under 50%; compact progress into `plan.md` before the 
 
 ## Done when
 - `bash scripts/verify.sh` exits 0 (full log ends `VERIFY OK`).
-- `scripts/update-ledger.sh <TASK> <TESTS>` flipped the row because verify passed.
+- `scripts/update-ledger.sh <feature> <TASK> <TESTS>` flipped the row because verify passed.
 - Required CI checks are green on the PR (the real source of truth).
 
 → Next: `review` (run with a different model for independent judgment of the diff).
