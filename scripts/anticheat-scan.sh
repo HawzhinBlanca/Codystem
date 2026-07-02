@@ -34,6 +34,13 @@ for f in "${files[@]}"; do
   if grep -nE '(^|[^a-zA-Z0-9_])(xit|xdescribe|fit|fdescribe)\(|(describe|it|test|context)\.skip\(|\.todo\(|@Disabled|pytest\.mark\.skip|unittest\.skip' "$f" >/dev/null 2>&1; then
     report "$f contains a skipped/disabled test (xit / .skip / .todo / @Disabled / pytest.mark.skip)"
   fi
+  # codystem-to-10of10 D1: env-conditional / programmatic self-skip — a test that short-circuits
+  # under the CI env is a cheat that SURVIVES a clean checkout (gate green, test never ran).
+  # Targets an `if (... process.env.CI ...)` branch or a programmatic this.skip(); a plain env
+  # read for config (process.env.API_URL) is NOT matched.
+  if grep -nE 'if[[:space:]]*\([^)]*(process\.env\.CI|GITHUB_ACTIONS|os\.environ[^)]*CI)|this\.skip\(\)' "$f" >/dev/null 2>&1; then
+    report "$f self-skips on the CI env (if(process.env.CI…) / this.skip()) — survives a clean checkout"
+  fi
 done
 
 if [[ "$fail" -ne 0 ]]; then
