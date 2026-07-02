@@ -12,7 +12,7 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "bash scripts/verify.sh --fast || true" }
+          { "type": "command", "command": "bash scripts/verify.sh --fast || { echo '⚠ PostToolUse fast-verify FAILED (lint/typecheck) — fix before Stop, see output above' >&2; true; }" }
         ]
       }
     ],
