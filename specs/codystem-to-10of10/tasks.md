@@ -20,7 +20,7 @@ the software + tests and prove what's provable locally; the owner wires the acco
 - [ ] C3 Findings-gate + CODEOWNERS human gate for high-risk + independence adversarial (same-model/forged/injection rejected K/K)
 
 ## Phase D — red-team the RIGHT boundary, continuously
-- [ ] D1 Corpus attacks the CLEAN-RUNNER gate (stack.env-neuter-survives-checkout, CI-only self-skip, committed-artifact-dodge, non-hook tool path) → expected CI RED — proof: each cheat caught
+- [x] D1 Corpus attacks the CLEAN-RUNNER gate (stack.env-neuter-survives-checkout, CI-only self-skip, committed-artifact-dodge, non-hook tool path) → expected CI RED — proof: each cheat caught
 - [ ] D2 Externalized append-only corpus + deterministic adversarial generator + auto-triage/quarantine/promote — proof: fault-injection → loop discovers+promotes+reds the gate
 - [ ] D3 Continuous hunts (nightly+PR) + dashboard — proof: ≥8 rolling runs, 100% catch, corpus↑, discovery-slope≤0, MTTC finite
 
