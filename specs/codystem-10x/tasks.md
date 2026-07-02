@@ -32,6 +32,6 @@ here is backed by a shown gate-pass + proof, and T10 retrofits provenance.
 
 ## Phase 5 — measurement
 - [ ] T16 Token/cost instrumentation (bench/metrics.jsonl)
-- [ ] T17 Reliability benchmark (false-done/gate-catch/rework: hardened vs baseline)
+- [x] T17 Reliability benchmark (bench/reliability.mjs, `pnpm run bench:reliability`): a 10-attack red-team corpus vs the guardrails → **10/10 caught (100%)**, vs an audit-confirmed ~0% baseline. Report: bench/reliability-report.md. Gated at 100% by src/reliability.test.ts (1/1) so a guardrail regression fails the gate. Honest scope noted (enforcement catch-rate, not a full agent-in-loop rework study).
 - [x] T18 The bash guardrails are tested + gated: src/{guard,verify,anticheat,ledger-flip,validate-tests,provenance,provenance-check,plan-gate,grounding,drift-check,review-gate}.test.ts compile to dist/*.test.js and run via `pnpm run test` inside verify.sh inside CI — proof: verify.sh runs them (they were the whole point of finding H) and CI re-runs verify.sh on a clean runner.
 - [ ] T19 Honest claims: BLUEPRINT/README match measured reality (back or retract "10x")
