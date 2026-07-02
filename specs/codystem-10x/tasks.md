@@ -22,7 +22,7 @@ here is backed by a shown gate-pass + proof, and T10 retrofits provenance.
 - [x] T10 Provenance-backed status (update-ledger.sh writes specs/<feature>/ledger.log; src/provenance.ts classifies a done [x] with no record as UNVERIFIED, surfaced as `unverified[]` in the status JSON) — proof: src/provenance.test.ts (4/4); live: status now honestly flags all 9 features' pre-provenance [x] rows as unverified
 
 ## Phase 3 — enforce the loop
-- [ ] T11 Plan-gate: block impl edits without an approved plan.md
+- [x] T11 Plan-gate (scripts/plan-gate-check.sh): a change touching src/ implementation requires an approved plan.md (real Approved-by:, not the placeholder); test files/docs/specs need none (test-first) — proof: src/plan-gate.test.ts (5/5, exit 7 on unapproved). CI wiring lands in the .github batch (T13/T18); guard can't do it (content/feature-blind).
 - [ ] T12 Grounding backstop: post-edit symbol-resolution/typecheck on edited file
 - [ ] T13 Gate the independent (different-model) review in CI
 
