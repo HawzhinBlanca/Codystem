@@ -62,6 +62,8 @@ fail=0
 # Anti-cheat scan (T5) runs first and always (fast + full): a suppressed test (.only/.skip/
 # xit/.todo) must never let the gate pass. Cheap (grep over tracked test files).
 run_step "anti-cheat" "ANTICHEAT" "bash '${_here}/anticheat-scan.sh'" || fail=1
+# Drift (T14): living docs must not cite files that no longer exist. Cheap grep.
+run_step "drift"      "DRIFT"      "bash '${_here}/drift-check.sh'" || fail=1
 run_step "lint"      "LINT_CMD"      "${LINT_CMD}"      || fail=1
 run_step "typecheck" "TYPECHECK_CMD" "${TYPECHECK_CMD}" || fail=1
 if [[ "${FAST}" != "--fast" ]]; then

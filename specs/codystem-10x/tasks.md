@@ -23,11 +23,11 @@ here is backed by a shown gate-pass + proof, and T10 retrofits provenance.
 
 ## Phase 3 — enforce the loop
 - [x] T11 Plan-gate (scripts/plan-gate-check.sh): a change touching src/ implementation requires an approved plan.md (real Approved-by:, not the placeholder); test files/docs/specs need none (test-first) — proof: src/plan-gate.test.ts (5/5, exit 7 on unapproved). CI wiring lands in the .github batch (T13/T18); guard can't do it (content/feature-blind).
-- [ ] T12 Grounding backstop: post-edit symbol-resolution/typecheck on edited file
+- [x] T12 Grounding backstop: `tsc --noEmit` (PostToolUse --fast + Stop + CI) rejects a hallucinated symbol as an unresolved reference — proof: src/grounding.test.ts (2/2, spawns tsc on fixtures: made-up symbol → fail, real → pass). Honest limit noted: misses type-valid-but-wrong / non-TS (that's T14's domain).
 - [ ] T13 Gate the independent (different-model) review in CI
 
 ## Phase 4 — drift detection + single source of truth
-- [ ] T14 Doc/memory drift check (cited files/symbols/flags must still exist)
+- [x] T14 Doc drift check (scripts/drift-check.sh, wired as a verify.sh step): a backtick-quoted repo path in a living doc (AGENTS/README/BLUEPRINT/CLAUDE/docs) must exist, else exit 8 — proof: src/drift-check.test.ts (3/3); live: 7 living docs clean. Scoped off specs/plans (forward-refs) + vendored skill docs.
 - [ ] T15 Single source of truth (AGENTS.md canonical; contradiction check)
 
 ## Phase 5 — measurement
