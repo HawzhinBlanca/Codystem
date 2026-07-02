@@ -19,6 +19,8 @@ task="$2"
 tests="$3"
 
 if bash "${here}/verify.sh"; then
+  # T8: the cited test ids must exist as real named tests (verify just proved they pass).
+  bash "${here}/validate-tests.sh" "$tests"
   bash "${here}/ledger-flip.sh" "$feature" "$task"
   echo "Ledger updated: ${feature}/${task} done (tests: ${tests}; verify.sh passed)."
 else
