@@ -7,8 +7,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # full history so PR-diff checks (plan-gate/review) work
       - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: "pnpm" }
       - run: pnpm install --frozen-lockfile
+      # The real, un-fakeable gate: re-runs verify.sh (anti-cheat + drift + lint + typecheck +
+      # the guardrail tests themselves + build) from committed source, on a clean runner with no
+      # agent shell to subvert. This is where CODYSTEM's guarantees actually live.
       - run: bash scripts/verify.sh                    # SAME script the agent runs locally
+
+  # codystem-10x T11: no implementation change without an approved plan.md. PR-only (needs a base).
+  plan-gate:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: plan-gate on the PR's changed files
+        run: |
+          base="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+          changed="$(git diff --name-only "$base"...HEAD)"
+          echo "changed files:"; echo "$changed"
+          # shellcheck disable=SC2086
+          bash scripts/plan-gate-check.sh $changed
+
+  # codystem-10x T13: the diff must have an independent (different-model) review, recorded as a
+  # Reviewed-by: trailer on a commit in the PR range. PR-only.
+  independent-review:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: require a Reviewed-by trailer
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=50 || true
+          bash scripts/review-gate-check.sh "origin/${{ github.base_ref }}..HEAD"

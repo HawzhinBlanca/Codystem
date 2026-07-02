@@ -24,7 +24,7 @@ here is backed by a shown gate-pass + proof, and T10 retrofits provenance.
 ## Phase 3 — enforce the loop
 - [x] T11 Plan-gate (scripts/plan-gate-check.sh): a change touching src/ implementation requires an approved plan.md (real Approved-by:, not the placeholder); test files/docs/specs need none (test-first) — proof: src/plan-gate.test.ts (5/5, exit 7 on unapproved). CI wiring lands in the .github batch (T13/T18); guard can't do it (content/feature-blind).
 - [x] T12 Grounding backstop: `tsc --noEmit` (PostToolUse --fast + Stop + CI) rejects a hallucinated symbol as an unresolved reference — proof: src/grounding.test.ts (2/2, spawns tsc on fixtures: made-up symbol → fail, real → pass). Honest limit noted: misses type-valid-but-wrong / non-TS (that's T14's domain).
-- [ ] T13 Gate the independent (different-model) review in CI
+- [x] T13 Gate the independent (different-model) review: scripts/review-gate-check.sh requires a `Reviewed-by:` trailer in the PR commit range; wired as the `independent-review` CI job (PR-only) — proof: src/review-gate.test.ts (3/3); live: fails this repo's un-reviewed commits (exit 9). Also wired T11's plan-gate as the `plan-gate` CI job. (Making them REQUIRED = branch-protection, a user action.)
 
 ## Phase 4 — drift detection + single source of truth
 - [x] T14 Doc drift check (scripts/drift-check.sh, wired as a verify.sh step): a backtick-quoted repo path in a living doc (AGENTS/README/BLUEPRINT/CLAUDE/docs) must exist, else exit 8 — proof: src/drift-check.test.ts (3/3); live: 7 living docs clean. Scoped off specs/plans (forward-refs) + vendored skill docs.
@@ -33,5 +33,5 @@ here is backed by a shown gate-pass + proof, and T10 retrofits provenance.
 ## Phase 5 — measurement
 - [ ] T16 Token/cost instrumentation (bench/metrics.jsonl)
 - [ ] T17 Reliability benchmark (false-done/gate-catch/rework: hardened vs baseline)
-- [ ] T18 Test the bash guardrails themselves, wired into verify.sh + CI
+- [x] T18 The bash guardrails are tested + gated: src/{guard,verify,anticheat,ledger-flip,validate-tests,provenance,provenance-check,plan-gate,grounding,drift-check,review-gate}.test.ts compile to dist/*.test.js and run via `pnpm run test` inside verify.sh inside CI — proof: verify.sh runs them (they were the whole point of finding H) and CI re-runs verify.sh on a clean runner.
 - [ ] T19 Honest claims: BLUEPRINT/README match measured reality (back or retract "10x")
