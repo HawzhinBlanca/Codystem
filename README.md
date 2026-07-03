@@ -1,8 +1,11 @@
 # CODYSTEM
 
-A lean, reliable AI-assisted coding harness. Reliability comes from four mechanisms,
-not from trusting the model — see [BLUEPRINT.md](BLUEPRINT.md) for the full rationale
+A lean, reliable AI-assisted coding harness. Reliability comes from mechanisms the agent's shell
+can't fake, not from trusting the model — see [BLUEPRINT.md](BLUEPRINT.md) for the full rationale
 and [AGENTS.md](AGENTS.md) for the operating rules agents must follow.
+
+**New here? Start with [docs/QUICKSTART.md](docs/QUICKSTART.md)** — the whole system on one page,
+plus `pnpm run onboard` to confirm the gates are live in seconds.
 
 ```
 RESEARCH → PLAN → (human approves) → IMPLEMENT → REVIEW
@@ -15,9 +18,11 @@ RESEARCH → PLAN → (human approves) → IMPLEMENT → REVIEW
 ## Status — live
 
 The harness is fully wired to **Node 22 + pnpm 10 + TypeScript 5** and governs a real codebase:
-**8 features (001–008)** shipped through the Research → Plan → Implement loop, each via a PR that
-had to pass `scripts/verify.sh` (lint + typecheck + test + build — **47 tests**, including
-property/fuzz suites) and the required CI checks before merging.
+**10 feature areas** shipped through the Research → Plan → Implement loop, each via a PR that had to
+pass `scripts/verify.sh` (lint + typecheck + test + build — **154 tests**, including property/fuzz
+and red-team suites) and the required CI checks before merging. An independent, different-model
+review runs on every PR — it has caught **~31 real defects**, including in the enforcement tooling
+itself.
 
 - **`main` is protected, and the gate is _required_** (`enforce_admins=true`): nothing merges
   unless the required **`verify`** and **`stress`** status checks are green — not even an admin
