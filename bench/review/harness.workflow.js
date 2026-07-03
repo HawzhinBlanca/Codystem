@@ -1,10 +1,13 @@
 export const meta = {
-  name: "c2-seeded-bug-harness",
-  description: "C2: generate+validate a seeded-bug corpus, run a blind reviewer, collect verdicts",
+  name: "c2b-seeded-bug-harness",
+  description: "C2b: larger corpus, ADVERSARIAL gold-label validation, blind reviewer, verdicts",
   phases: [
-    { title: "Generate", detail: "generators emit buggy/clean code cases across defect classes" },
-    { title: "Validate", detail: "independent agents confirm each ground-truth label" },
-    { title: "Review", detail: "a BLIND reviewer (label withheld) verdicts each case" },
+    { title: "Generate", detail: "generators emit snippet-provable buggy + clean cases" },
+    {
+      title: "Validate",
+      detail: "ADVERSARIAL: try hard to break clean controls; confirm seeded bugs",
+    },
+    { title: "Review", detail: "a BLIND reviewer (label withheld) verdicts each surviving case" },
   ],
 };
 
@@ -38,9 +41,9 @@ const VALIDATE_SCHEMA = {
       type: "string",
       enum: ["confirmed-buggy", "confirmed-clean", "mismatch", "ambiguous"],
     },
-    where: { type: "string" },
+    reason: { type: "string" },
   },
-  required: ["label", "where"],
+  required: ["label", "reason"],
 };
 
 const REVIEW_SCHEMA = {
@@ -53,14 +56,15 @@ const REVIEW_SCHEMA = {
   required: ["flaggedBuggy", "reason"],
 };
 
-// Each generator owns distinct defect classes so the corpus spans real bug types.
 const GEN_SPECS = [
   { classes: "off-by-one, incorrect-boundary (slice/substring/loop bound)" },
   { classes: "null-or-undefined-deref, missing-null-check" },
   { classes: "wrong-operator (< vs <=, && vs ||, == vs ===), sign-error" },
   { classes: "wrong-formula-or-denominator, swapped-arguments" },
-  { classes: "missing-return / missing-await, unhandled-async-rejection" },
-  { classes: "resource-leak (unclosed handle), mutation-of-shared-state" },
+  { classes: "missing-return, incorrect-early-return" },
+  { classes: "array-mutation-during-iteration, mutation-of-shared-default" },
+  { classes: "integer/float-money rounding error, precision loss" },
+  { classes: "wrong-boundary in a comparison chain, inclusive/exclusive range error" },
 ];
 
 phase("Generate");
@@ -68,18 +72,21 @@ const batches = await parallel(
   GEN_SPECS.map(
     (g, i) => () =>
       agent(
-        "Produce seeded-bug test cases for a code-review benchmark. Emit 4 BUGGY cases and 2 CLEAN " +
-          "cases. Each case is a SMALL self-contained TypeScript/JavaScript function (6-16 lines, no " +
-          "imports, realistic). BUGGY cases must contain EXACTLY ONE genuine, unambiguous defect from " +
-          "these classes: " +
+        "Produce cases for a code-review benchmark. Emit 5 BUGGY and 3 CLEAN small self-contained " +
+          "TypeScript/JavaScript functions (6-16 lines, no imports). CRITICAL RULES: (1) A BUGGY case " +
+          "has EXACTLY ONE genuine defect from: " +
           g.classes +
-          ". CLEAN cases must be genuinely correct functions of " +
-          "similar shape/size in the SAME domains (so a reviewer cannot cheat by pattern) with NO " +
-          "defect. Vary the domain (parsing, math, arrays, dates, strings, money, async). Set " +
-          'buggy=true/false, bugClass to the specific class (or "clean"), code to the function source, ' +
-          "and note to a one-line description of the planted bug (or why it is clean). Do NOT put the " +
-          'word "bug"/"BUG"/"FIXME" or the defect description inside code or comments — the reviewer ' +
-          "sees only the code and must not get hints. Batch index " +
+          ", and the defect MUST be PROVABLE FROM " +
+          "THE FUNCTION ALONE — do NOT rely on the behavior of untyped parameters or external " +
+          "functions whose contract is not visible (e.g. do not make the bug depend on whether some " +
+          "passed-in db.find is async). Give all parameters explicit types so the bug is self-evident. " +
+          "(2) A CLEAN case must be GENUINELY CORRECT AND ROBUST — it must handle empty input, " +
+          "boundaries, and typical edge cases with NO defect a careful reviewer could name (no " +
+          "throw-undefined on empty, no unvalidated ranges, no DST/precision traps). Make clean cases " +
+          "the SAME shape/domain as buggy ones so a reviewer cannot pattern-match. Vary domains " +
+          '(parsing, math, arrays, strings, money, ranges). Set buggy, bugClass (or "clean"), code, and ' +
+          "note (the exact defect + a failing input, or why it is robustly clean). Do NOT write " +
+          '"bug"/"FIXME"/the defect in code or comments. Batch ' +
           i +
           ".",
         {
@@ -93,8 +100,6 @@ const batches = await parallel(
   )
 );
 
-// dedup by normalized code (independent generators sometimes emit the same function), then assign
-// stable ids — so an identical snippet can't be counted as several distinct cases/FPs.
 const seenCode = new Set();
 const allCases = batches
   .filter(Boolean)
@@ -113,23 +118,29 @@ const allCases = batches
     note: c.note,
   }));
 
-log("generated " + allCases.length + " raw cases");
+log("generated " + allCases.length + " unique cases");
 
 phase("Validate");
-// Independent validation of ground truth: is the claimed label actually correct?
+// ADVERSARIAL gold-label validation — the #20 lesson: a clean control is only clean if an agent
+// that TRIES HARD to break it cannot. Buggy cases must be provable from the snippet alone.
 const validated = (
   await parallel(
     allCases.map(
       (c) => () =>
         agent(
-          "You are validating the GROUND-TRUTH label of a code-review benchmark case. The author " +
-            "claims this function is " +
-            (c.buggy ? "BUGGY" : "CLEAN") +
-            ". Independently decide: does " +
-            "it contain a genuine, unambiguous defect? Return label=confirmed-buggy if it truly has a " +
-            "clear bug, confirmed-clean if it is genuinely correct, mismatch if the claim is wrong, " +
-            'ambiguous if it is debatable/style-only. where = the buggy line or "n/a". Code:\n\n' +
-            c.code,
+          c.buggy
+            ? "Validate a BENCHMARK case claimed to be BUGGY. Decide: does it contain a genuine defect " +
+                "that is PROVABLE FROM THE CODE ALONE (not dependent on unseen external contracts)? " +
+                "label=confirmed-buggy only if the bug is real AND self-evident from the snippet; " +
+                "mismatch if there is no real bug; ambiguous if it depends on unseen behavior. reason = " +
+                "the bug + a failing input, or why not. Code:\n\n" +
+                c.code
+            : "ADVERSARIALLY validate a case claimed to be CLEAN. Try HARD to break it: empty/…/negative " +
+                "inputs, boundaries, overflow, precision, ordering, unusual but valid arguments. " +
+                "label=confirmed-clean ONLY if after genuinely trying you cannot name ANY real defect; if " +
+                "you find ANY concrete defect (with a failing input), label=mismatch. reason = the defect " +
+                'you found, or "robust: tried X/Y/Z, no defect". Code:\n\n' +
+                c.code,
           {
             label: "val:" + c.id,
             phase: "Validate",
@@ -142,27 +153,22 @@ const validated = (
   )
 )
   .filter((x) => x && x.v)
-  // keep only cases whose independent validation AGREES with the claimed label (clean ground truth)
   .filter(({ c, v }) => (c.buggy ? v.label === "confirmed-buggy" : v.label === "confirmed-clean"))
   .map(({ c }) => c);
 
 const seeded = validated.filter((c) => c.buggy).length;
 const clean = validated.filter((c) => !c.buggy).length;
-log(
-  "validated corpus: " + seeded + " seeded + " + clean + " clean (" + validated.length + " total)"
-);
+log("validated: " + seeded + " seeded + " + clean + " clean (" + validated.length + " total)");
 
 phase("Review");
-// The reviewer under test — BLIND to the label. Sees only the code.
 const verdicts = await parallel(
   validated.map(
     (c) => () =>
       agent(
         "You are an expert code reviewer. Review this standalone function for a genuine, concrete " +
-          "DEFECT (a bug that produces wrong output, a crash, a leak, or incorrect behavior on some " +
-          "input). Ignore pure style. Decide flaggedBuggy=true ONLY if you can name a real defect with " +
-          "a failing input/scenario; otherwise false. reason = the defect + a failing input, or why it " +
-          "is correct. Function:\n\n" +
+          "DEFECT (wrong output, crash, leak, or incorrect behavior on some input). Ignore pure style. " +
+          "flaggedBuggy=true ONLY if you can name a real defect with a failing input; else false. " +
+          "reason = the defect + failing input, or why it is correct. Function:\n\n" +
           c.code,
         {
           label: "review:" + c.id,
