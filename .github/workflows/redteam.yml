@@ -1,10 +1,14 @@
 name: redteam
-# codystem-to-10of10 D3: CONTINUOUS red-team hunt. On every PR and nightly, generate attacks across
-# a rotating seed window + the committed regression corpus, run them through the guard on a clean
-# runner, and RED on any SLIP (a real bypass) or OVERBLOCK (over-block regression). This is the
-# "continuous" half of D3; the rolling metrics series (bench/redteam/runs.jsonl) + dashboard accrue
-# over runs and are summarized by src/redteam-metrics.ts. NOTE: this is an informational check, not
-# (yet) a required merge-gate — promoting it to required is an owner branch-protection step.
+# codystem-to-10of10 D3: CONTINUOUS red-team, run on every PR and nightly on a clean runner. Two
+# real gates fail the job:
+#   1. DETECTION ROUND — generate attacks (rotating seed window) + hunt the corpus through the guard;
+#      red on any SLIP (a bypass) or OVERBLOCK (over-block regression) in the CURRENT guard.
+#   2. SERIES GATE — src/redteam-check.ts reds on any REAL regression in the COMMITTED rolling series
+#      bench/redteam/runs.jsonl (catch<100%, corpus shrank, discovery slope>0, MTTC=∞), but NOT while
+#      the series is merely still accruing toward the ≥8-run proof.
+# The dashboard is an informational artifact (never fails the job). NOTE: this workflow does NOT
+# append to or persist the committed series — auto-accrual of new rows (nightly → auto-PR) is the
+# still-open D3c task and an owner-facing decision (auto-commit policy on protected main).
 on:
   pull_request:
   schedule:
@@ -19,15 +23,17 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: "pnpm" }
       - run: pnpm install --frozen-lockfile
-      - name: continuous red-team hunt (reds on any SLIP / OVERBLOCK)
+      - run: pnpm run build:cli # dist/ is needed by the series gate + dashboard
+      - name: detection round — red on any SLIP / OVERBLOCK in the current guard
         run: |
           s=$(date +%-j)   # day-of-year, no leading zero (avoids octal in $(()))
-          node bench/redteam/run.mjs --runs-file "$RUNNER_TEMP/runs.jsonl" --seeds "$s $((s + 1)) $((s + 2))"
-      - name: render dashboard (artifact)
+          node bench/redteam/run.mjs --runs-file "$RUNNER_TEMP/round.jsonl" --seeds "$s $((s + 1)) $((s + 2))"
+      - name: series gate — red on any regression in the committed rolling series
+        run: node dist/redteam-check.js bench/redteam/runs.jsonl
+      - name: dashboard (informational artifact — never fails the job)
         if: always()
-        run: |
-          pnpm run build:cli
-          node dist/redteam-dashboard.js "$RUNNER_TEMP/runs.jsonl" "$RUNNER_TEMP/dashboard.md" || true
+        continue-on-error: true
+        run: node dist/redteam-dashboard.js bench/redteam/runs.jsonl "$RUNNER_TEMP/dashboard.md"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

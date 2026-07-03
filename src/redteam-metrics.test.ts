@@ -12,6 +12,7 @@ import {
   cleanStreak,
   summarize,
   d3Verdict,
+  d3Regressions,
   renderDashboard,
   type RunRecord,
 } from "./redteam-metrics.js";
@@ -22,7 +23,8 @@ function rec(run: number, over: Partial<RunRecord> = {}): RunRecord {
     ts: `2026-07-03T00:0${run % 10}:00Z`,
     seeds: [run],
     generated: 60,
-    caught: 60,
+    evaluated: 100, // generated (60) + corpus (40): deliberately ≠ generated, so catchRate can't cheat
+    caught: 100,
     slips: 0,
     overblocks: 0,
     corpus: 40,
@@ -37,11 +39,15 @@ test("t-m1: parseRuns skips blanks and rejects malformed / incomplete records", 
   assert.throws(() => parseRuns("not json\n")); // unparseable
 });
 
-test("t-m2: catchRate is caught / total attacks; 100% when all caught, 1.0 when empty", () => {
+test("t-m2: catchRate uses caught/(caught+slips+overblocks), NOT the generated field", () => {
   assert.equal(catchRate([]), 1);
-  assert.equal(catchRate([rec(1), rec(2)]), 1);
-  const leaky = [rec(1, { caught: 59, slips: 1 })];
-  assert.equal(Math.round(catchRate(leaky) * 1000) / 1000, 0.983);
+  // all caught → 100% even though generated (60) ≠ evaluated (100); a generated-denominator bug
+  // would wrongly compute 100/60 > 1.
+  assert.equal(catchRate([rec(1)]), 1);
+  // a real leak: 200 evaluated, 10 slipped → 190/200 = 0.95. A generated (60) denominator would
+  // give 190/60 ≈ 3.17 — so this pins the correct denominator and can't pass for the wrong reason.
+  const leaky = [rec(1, { generated: 60, evaluated: 200, caught: 190, slips: 10, overblocks: 0 })];
+  assert.equal(catchRate(leaky), 0.95);
 });
 
 test("t-m3: corpusMonotonic detects a shrink; corpusGrowth is last-first", () => {
@@ -92,6 +98,17 @@ test("t-m7: d3Verdict passes only when all gates hold AND enough rolling runs ac
   const vo = d3Verdict(withOpen, 8);
   assert.equal(vo.pass, false);
   assert.match(vo.reasons.join(";"), /MTTC is ∞|slope|catch rate/);
+});
+
+test("t-m9: d3Regressions flags REAL regressions but not the benign 'still accruing' state", () => {
+  assert.deepEqual(d3Regressions([]), []); // nothing to regress against
+  assert.deepEqual(d3Regressions([rec(1), rec(2)]), []); // clean but few runs → NOT a regression
+  assert.match(d3Regressions([rec(1, { caught: 90, slips: 10 })]).join(";"), /catch rate/); // a leak
+  assert.match(
+    d3Regressions([rec(1, { corpus: 42 }), rec(2, { corpus: 40 })]).join(";"),
+    /corpus shrank/
+  ); // append-only violated
+  assert.match(d3Regressions([rec(1), rec(2, { slips: 1 })]).join(";"), /MTTC/); // open bypass at end
 });
 
 test("t-m8: summarize + renderDashboard are non-vacuous and reflect the series", () => {

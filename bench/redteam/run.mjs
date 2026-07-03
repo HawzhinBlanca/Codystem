@@ -17,6 +17,16 @@ const arg = (k, d) => {
 };
 const seeds = arg("--seeds", "1 2 3").trim().split(/\s+/).map(Number);
 const n = Number(arg("--n", "60"));
+if (!seeds.length || seeds.some((s) => !Number.isFinite(s))) {
+  console.error(
+    `run: invalid --seeds (must be space-separated numbers), got ${JSON.stringify(seeds)}`
+  );
+  process.exit(2);
+}
+if (!Number.isInteger(n) || n <= 0) {
+  console.error(`run: invalid --n (must be a positive integer), got ${arg("--n", "60")}`);
+  process.exit(2);
+}
 const runsFile = arg("--runs-file", "bench/redteam/runs.jsonl");
 const corpusFile = arg("--corpus", "bench/redteam/corpus.jsonl");
 const ts = arg("--ts", new Date().toISOString());
@@ -67,21 +77,33 @@ for (const c of candidates) {
   else blocked ? caught++ : slips++;
 }
 
+// Count only WELL-FORMED prior records, so a truncated/corrupt last line from a crashed prior run
+// is not miscounted as a valid run (which would collide the next run index).
 const prior = existsSync(runsFile)
   ? readFileSync(runsFile, "utf8")
       .split("\n")
-      .filter((l) => l.trim()).length
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .filter((l) => {
+        try {
+          return typeof JSON.parse(l).run === "number";
+        } catch {
+          return false;
+        }
+      }).length
   : 0;
 
 const record = {
   run: prior + 1,
   ts,
   seeds,
-  generated: seeds.length * n,
+  generated: seeds.length * n, // GENERATED only (excludes corpus)
+  evaluated: candidates.length, // TOTAL run through the guard (generated + corpus)
   caught,
   slips,
   overblocks,
   corpus: corpus.length,
+  source: process.env.CI ? "ci" : "local",
 };
 appendFileSync(runsFile, JSON.stringify(record) + "\n");
 console.log(

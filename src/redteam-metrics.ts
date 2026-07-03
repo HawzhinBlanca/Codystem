@@ -7,11 +7,13 @@ export interface RunRecord {
   run: number; // 1-based run index
   ts: string; // ISO timestamp (recorded by the runner)
   seeds: number[]; // generator seeds used this round
-  generated: number; // attacks generated this round
-  caught: number; // attacks the guard blocked (expected)
+  generated: number; // attacks GENERATED this round (seeds × n) — excludes the corpus
+  evaluated: number; // TOTAL candidates run through the guard (generated + corpus) = caught+slips+overblocks
+  caught: number; // candidates the guard blocked-as-expected / allowed-as-expected
   slips: number; // expect:block candidates the guard ALLOWED — real bypasses
   overblocks: number; // expect:allow candidates the guard BLOCKED — over-block regressions
   corpus: number; // size of the committed regression corpus at this run
+  source?: string; // provenance: "local" (a dev machine) or "ci" (a runner) — informational
 }
 
 const REQUIRED: (keyof RunRecord)[] = [
@@ -19,6 +21,7 @@ const REQUIRED: (keyof RunRecord)[] = [
   "ts",
   "seeds",
   "generated",
+  "evaluated",
   "caught",
   "slips",
   "overblocks",
@@ -140,6 +143,23 @@ export function summarize(runs: RunRecord[]): Summary {
     mttc: mttc(runs),
     cleanStreak: cleanStreak(runs),
   };
+}
+
+/**
+ * REAL regressions in the series — the CI-ENFORCEABLE subset of the D3 gate. Deliberately EXCLUDES
+ * the benign "still accruing < minRuns" state (which is expected, not a failure), so a nightly/PR
+ * job can red on a genuine boundary regression (a leak, a corpus shrink, rising discovery, or an
+ * open bypass) WITHOUT spuriously failing while the series is still building up. Empty ⇒ clean.
+ */
+export function d3Regressions(runs: RunRecord[]): string[] {
+  const out: string[] = [];
+  if (runs.length === 0) return out; // nothing to regress against yet
+  const s = summarize(runs);
+  if (s.catchRatePct < 100) out.push(`catch rate ${s.catchRatePct}% < 100%`);
+  if (!s.corpusMonotonic) out.push("corpus shrank (not append-only)");
+  if (s.discoverySlope > 0) out.push(`discovery slope ${s.discoverySlope} > 0 (not converging)`);
+  if (s.mttc === null) out.push("MTTC is ∞ — an open bypass at series end");
+  return out;
 }
 
 /**
