@@ -118,3 +118,35 @@ test("t-st7: 'underpowered' flips exactly at n=300/arm (boundary + the && betwee
   );
   assert.match(withoutLow, /UNDERPOWERED/); // WITHOUT arm 299 → pins the SECOND >= as well
 });
+
+test("t-st8: twoProportionP pinned to reference p-values; render scales the CI by ×100", () => {
+  // Reference two-sided p from the (externally-validated, err < 7.5e-8) Abramowitz-Stegun normal CDF.
+  // Pinning the exact rounded output constrains the `se` formula AND every normalCdf operator, so an
+  // operator mutation anywhere in them is caught. (These were 3 survivors that the earlier loose
+  // `< 0.001` / `=== 1` assertions could not distinguish — a real test gap, NOT equivalent mutants.)
+  assert.equal(twoProportionP(10, 100, 30, 100), 0.00041); // z ≈ 3.54
+  assert.equal(twoProportionP(20, 100, 35, 100), 0.01753); // z ≈ 2.375
+  assert.equal(twoProportionP(5, 100, 25, 100), 0.00007); // z ≈ 4.4
+  // The rendered CI must be a PERCENTAGE (×100): WITHOUT escaped-defect 30/100 → Wilson [21.9, 39.6]%.
+  // A `* → /` in the ci() render helper would print [0.219, 0.396]% — pin the correctly-scaled value.
+  const md = renderStudyReport(analyze(corpus()), { date: "2026-07-04" });
+  assert.match(md, /\[21\.9, 39\.6\]%/);
+});
+
+test("t-st9: the E3 decision thresholds are STRICT (<); pct() renders a ×100 percentage", () => {
+  // Significance is STRICT p < 0.05, not <=. 13/65 vs 23/65 gives EXACTLY p = 0.05000 (integer counts
+  // found by search) → NOT significant. This pins the α boundary — the single most important
+  // comparison in the module — which a `< → <=` mutant would silently flip to "significant".
+  const atAlpha = analyze([
+    ...armAttempts("with", 65, 0, 13),
+    ...armAttempts("without", 65, 0, 23),
+  ]);
+  assert.equal(atAlpha.escapedDefectPValue, 0.05);
+  assert.equal(atAlpha.significant, false); // 0.05 < 0.05 is false
+  // false-done < 5% is STRICT: exactly 5% (1 escaped of 20 shipped) is NOT "under 5%".
+  assert.equal(analyze(armAttempts("with", 20, 0, 1)).targetsMet.falseDoneUnder5, false);
+  // escaped-defect < 2% is STRICT: exactly 2% (1 escaped of 50 attempts) is NOT "under 2%".
+  assert.equal(analyze(armAttempts("with", 50, 0, 1)).targetsMet.escapedDefectUnder2, false);
+  // pct() renders a percentage (×100): WITHOUT escaped-defect 30/100 → "30% (30/100)". A `* → /` → "0%".
+  assert.match(renderStudyReport(analyze(corpus()), { date: "d" }), /30% \(30\/100\)/);
+});

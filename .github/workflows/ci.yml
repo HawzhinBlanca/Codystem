@@ -52,6 +52,9 @@ jobs:
   # own job — it re-runs a suite per mutant, so it is slower than verify.sh.
   mutation:
     runs-on: ubuntu-latest
+    # Fail fast rather than hang the default 360-min budget if a future mutant ever spins (each mutant
+    # is bounded by an 8s per-run timeout, so the whole gate is minutes; 20 is generous headroom).
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

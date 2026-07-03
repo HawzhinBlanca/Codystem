@@ -52,11 +52,17 @@ function sites(source) {
 }
 
 /**
- * Mutation-test one module. @returns {{file, baselinePass, total, killed, survived:[{line,orig,repl}]}}
+ * Mutation-test one module.
+ * @returns {{file, baselinePass, total, killed, survived:[{line,orig,repl}],
+ *            timedOut:[{line,orig,repl}], sampledFrom:number}}
+ *   timedOut  — mutants whose test run HUNG (never counted as killed, so a hang can't inflate score).
+ *   sampledFrom — 0 for a full enumeration, else the true site count a maxMutants subset was drawn from.
  */
 export function mutateFile(srcPath, testPath, opts = {}) {
   const timeoutMs = opts.timeoutMs ?? 8000;
-  const maxMutants = opts.maxMutants ?? 80;
+  // Full enumeration for our small pure modules (largest ≈ 90 sites) — no sampling, so no survivor
+  // can hide behind a subset. The cap is only a runaway backstop for an unexpectedly huge file.
+  const maxMutants = opts.maxMutants ?? 400;
   const src = readFileSync(srcPath, "utf8");
   const base = basename(srcPath); // e.g. study.ts
   const stem = base.replace(/\.ts$/, ""); // study
@@ -78,22 +84,40 @@ export function mutateFile(srcPath, testPath, opts = {}) {
     writeFileSync(srcDst, src);
     const baseRes = run();
     if (baseRes.status !== 0) {
-      return { file: base, baselinePass: false, total: 0, killed: 0, survived: [] };
+      return { file: base, baselinePass: false, total: 0, killed: 0, survived: [], timedOut: [], sampledFrom: 0 };
     }
 
+    // Enumerate all mutation sites. If over the cap, sample an EVENLY-spaced maxMutants subset and
+    // record the true unsampled total (`sampledFrom`) so the report can disclose that sampling ran —
+    // a silent under-sample could otherwise score a big file off a non-representative subset.
     let all = sites(src);
-    if (all.length > maxMutants) all = all.filter((_, i) => i % Math.ceil(all.length / maxMutants) === 0);
+    let sampledFrom = 0;
+    if (all.length > maxMutants) {
+      sampledFrom = all.length;
+      const step = all.length / maxMutants;
+      all = Array.from({ length: maxMutants }, (_, i) => all[Math.floor(i * step)]);
+    }
 
     let killed = 0;
     const survived = [];
+    const timedOut = [];
     for (const s of all) {
       const mutant = src.slice(0, s.start) + s.repl + src.slice(s.end);
       writeFileSync(srcDst, mutant);
       const r = run();
-      if (r.status !== 0) killed++; // tests failed / crashed / timed out on the bug → caught
-      else survived.push({ line: s.line, orig: src.slice(s.start, s.end), repl: s.repl });
+      const isTimeout = Boolean(r.error && r.error.code === "ETIMEDOUT");
+      if (isTimeout) {
+        // A HANG is not an assertion catching the bug — crediting it as a kill would mask a real
+        // survivor (e.g. a `while`/`for` bound mutated into an infinite loop against a test that never
+        // checks a distinguishing value). Report timeouts distinctly; they never count as killed.
+        timedOut.push({ line: s.line, orig: src.slice(s.start, s.end), repl: s.repl });
+      } else if (r.status !== 0) {
+        killed++; // tests failed / threw on the injected bug → genuinely caught
+      } else {
+        survived.push({ line: s.line, orig: src.slice(s.start, s.end), repl: s.repl });
+      }
     }
-    return { file: base, baselinePass: true, total: all.length, killed, survived };
+    return { file: base, baselinePass: true, total: all.length, killed, survived, timedOut, sampledFrom };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
