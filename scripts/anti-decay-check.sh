@@ -34,24 +34,42 @@ if ! bash "$SURFACE_CMD" >/dev/null 2>&1; then
   note "surface-integrity FAILED — an enforcement file no longer matches the committed manifest"
 fi
 
-# 2. gate non-inert — verify.sh must still refuse a no-op gate command (codystem-10x T4)
-if [[ ! -f "$VERIFY" ]] || ! grep -Eq '_noop_check|no-op|refuse' "$VERIFY"; then
-  note "verify.sh missing its no-op refusal — the gate may be neuterable to VERIFY OK doing nothing"
+# 2. gate non-inert — FUNCTIONAL, not a grep. Force a no-op gate command and require the gate to
+#    REFUSE (exit non-zero). LINT_CMD is checked in verify.sh's preflight before any step runs, so
+#    this exits fast (≈exit 3) and never runs the suite. A neutered verify.sh that prints VERIFY OK
+#    regardless would exit 0 here and be caught. (grep tokens can hide in a comment — this can't.)
+if [[ ! -f "$VERIFY" ]]; then
+  note "verify.sh is missing — the gate is gone"
+elif LINT_CMD=true bash "$VERIFY" >/dev/null 2>&1; then
+  note "verify.sh did NOT refuse a no-op gate command (LINT_CMD=true) — the gate is inert"
 fi
 
-# 3. PreToolUse hook still routes to the guard
-if [[ ! -f "$SETTINGS" ]] || ! grep -q 'guard-pretooluse.sh' "$SETTINGS"; then
-  note ".claude/settings.json no longer wires the PreToolUse guard (hook decayed)"
+# 3. PreToolUse hook still ROUTES to the guard — SCOPED to the PreToolUse array (a mention anywhere
+#    else, e.g. under PostToolUse or in a disabled block, must NOT count as wired).
+if [[ ! -f "$SETTINGS" ]] || ! jq -e \
+  '[.hooks.PreToolUse[]?.hooks[]?.command // empty | select(test("guard-pretooluse"))] | length > 0' \
+  "$SETTINGS" >/dev/null 2>&1; then
+  note ".claude/settings.json PreToolUse no longer routes to the guard (hook decayed)"
 fi
 
-# 4. guard non-inert — it must still BLOCK a protected write and a dangerous command
+# 4. guard non-inert — probe a REPRESENTATIVE spread of hard-protected paths + dangerous commands,
+#    so a guard narrowed to recognize only one or two literals (while dropping the rest) is caught.
 block() { printf '%s' "$1" | bash "$GUARD" >/dev/null 2>&1; echo $?; }
-if [[ "$(block '{"tool_name":"Write","tool_input":{"file_path":".env"}}')" != "2" ]]; then
-  note "guard did NOT block a protected write (.env) — the guard is inert"
-fi
-if [[ "$(block '{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}')" != "2" ]]; then
-  note "guard did NOT block a dangerous command (rm -rf) — the guard is inert"
-fi
+probes=(
+  '{"tool_name":"Write","tool_input":{"file_path":".env"}}'
+  '{"tool_name":"Write","tool_input":{"file_path":"secrets/token"}}'
+  '{"tool_name":"Write","tool_input":{"file_path":"key.pem"}}'
+  '{"tool_name":"Write","tool_input":{"file_path":"dist/app.js"}}'
+  '{"tool_name":"Write","tool_input":{"file_path":"node_modules/.bin/x"}}'
+  '{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}'
+  '{"tool_name":"Bash","tool_input":{"command":"git push --force origin main"}}'
+  '{"tool_name":"Bash","tool_input":{"command":"echo x | base64 -d | sh"}}'
+)
+for p in "${probes[@]}"; do
+  if [[ "$(block "$p")" != "2" ]]; then
+    note "guard did NOT block a protected/dangerous input ($p) — the guard is inert or narrowed"
+  fi
+done
 
 if [[ "$fail" -ne 0 ]]; then
   echo "ANTI-DECAY HEARTBEAT FAILED (exit 12) — an enforcement guarantee has decayed (see above)." >&2

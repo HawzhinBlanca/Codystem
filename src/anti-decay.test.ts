@@ -52,23 +52,67 @@ test("t-adr2: an inert guard (never blocks) is caught (exit 12)", () => {
   });
 });
 
+test("t-adr2b: a NARROWED guard (blocks only .env + rm -rf, drops the rest) is caught (exit 12)", () => {
+  // PR #19 review finding #3: two hardcoded probes let a guard narrowed to just those literals pass.
+  withTmp((dir) => {
+    const stub = join(dir, "guard.sh");
+    writeFileSync(
+      stub,
+      "#!/usr/bin/env bash\n" +
+        'in="$(cat)"\n' +
+        'case "$in" in *.env\\"*) exit 2;; esac\n' +
+        'case "$in" in *"rm -rf"*) exit 2;; esac\n' +
+        "exit 0\n" // allows secrets/**, *.pem, dist/**, force-push, etc.
+    );
+    chmodSync(stub, 0o755);
+    const res = run({ ADR_GUARD: stub });
+    assert.equal(res.status, DECAYED, res.stdout + res.stderr);
+    assert.match(res.stderr, /guard did NOT block/);
+  });
+});
+
 test("t-adr3: an unwired PreToolUse hook is caught (exit 12)", () => {
   withTmp((dir) => {
     const settings = join(dir, "settings.json");
     writeFileSync(settings, '{"hooks":{}}\n'); // no guard reference
     const res = run({ ADR_SETTINGS: settings });
     assert.equal(res.status, DECAYED);
-    assert.match(res.stderr, /no longer wires the PreToolUse guard/);
+    assert.match(res.stderr, /PreToolUse no longer routes to the guard/);
   });
 });
 
-test("t-adr4: a gate that lost its no-op refusal is caught (exit 12)", () => {
+test("t-adr3b: guard removed from PreToolUse but still under PostToolUse is caught (scoped) (exit 12)", () => {
+  // PR #19 review finding #1: an unscoped grep passed because the filename appeared elsewhere.
+  withTmp((dir) => {
+    const settings = join(dir, "settings.json");
+    writeFileSync(
+      settings,
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [], // the guard is NO LONGER wired to the hook that intercepts pre-execution
+          PostToolUse: [
+            { hooks: [{ type: "command", command: "bash scripts/guard-pretooluse.sh" }] },
+          ],
+        },
+      }) + "\n"
+    );
+    const res = run({ ADR_SETTINGS: settings });
+    assert.equal(res.status, DECAYED, res.stdout + res.stderr);
+    assert.match(res.stderr, /PreToolUse no longer routes to the guard/);
+  });
+});
+
+test("t-adr4: a gate that lost its no-op refusal is caught, even if a comment keeps the token (exit 12)", () => {
+  // PR #19 review finding #2: the old grep matched a comment; the functional check runs the gate.
   withTmp((dir) => {
     const verify = join(dir, "verify.sh");
-    writeFileSync(verify, "#!/usr/bin/env bash\necho VERIFY OK\n"); // inert gate
+    writeFileSync(
+      verify,
+      '#!/usr/bin/env bash\n# _noop_check / no-op / refuse — tokens kept in a comment only\necho "VERIFY OK"\nexit 0\n'
+    );
     const res = run({ ADR_VERIFY: verify });
-    assert.equal(res.status, DECAYED);
-    assert.match(res.stderr, /no-op refusal/);
+    assert.equal(res.status, DECAYED, res.stdout + res.stderr);
+    assert.match(res.stderr, /did NOT refuse a no-op/);
   });
 });
 
