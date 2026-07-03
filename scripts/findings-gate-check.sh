@@ -22,9 +22,11 @@ for f in "${files[@]}"; do
     fail=1
     continue
   }
+  # severity is normalized to lowercase (a whitelist — "Blocker" must not skip the gate); status is
+  # a blocklist that fails closed, so any non-"resolved"/"wontfix-approved" spelling counts as open.
   open="$(jq -r '
       [ .[]
-        | select((.severity=="blocker" or .severity=="major")
+        | select(((.severity // "" | ascii_downcase) as $s | $s=="blocker" or $s=="major")
                  and .status!="resolved" and .status!="wontfix-approved")
         | .id ] | join(",")' "$f" 2>/dev/null || echo "__PARSE_ERR__")"
   if [[ "$open" == "__PARSE_ERR__" ]]; then

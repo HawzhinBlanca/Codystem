@@ -25,21 +25,32 @@ if [[ -z "$reviewed_lines" ]]; then
   exit 9
 fi
 
-# Reject obvious self-forgery (the reviewer names the author / self / a placeholder).
-if printf '%s' "$reviewed_lines" | grep -qiE 'Reviewed-by:[[:space:]]*(me|self|author|n/?a|none)[[:space:]]*$'; then
+# Reject obvious self-forgery (the reviewer value is the author/self/a placeholder). The placeholder
+# is matched as a token right after the colon and need NOT end the line, so trailing text like
+# "me obviously" or "the author himself" does not slip past.
+if printf '%s' "$reviewed_lines" | grep -qiE 'Reviewed-by:[[:space:]]*(the[[:space:]]+)?(me|myself|self|author|same[[:space:]]+model|n/?a|none)([^a-zA-Z0-9]|$)'; then
   echo "REVIEW-GATE FAIL: 'Reviewed-by' names the author/self/placeholder — not an independent review." >&2
   exit 9
 fi
 
-# Independence: if the reviewer names a recognized model, at least one named reviewer model must
-# DIFFER from every author model (Co-Authored-By). A review by only the author's own model is rejected.
+# Extract model names as WHOLE WORDS (split on non-alphanumerics, lowercase, match exactly), so a
+# substring like "Octopus" is NOT read as "opus". Portable (tr + grep -x, no \b / -P).
 known='opus|sonnet|haiku|fable'
-# `|| true`: a grep with no match exits 1, which under `set -euo pipefail` would abort the whole
-# assignment — a no-model reviewer (a human) is legitimate, not an error.
-authors="$(printf '%s' "$msgs" | grep -iE '^[[:space:]]*Co-Authored-By:' | grep -ioE "$known" | tr '[:upper:]' '[:lower:]' | sort -u || true)"
-reviewers="$(printf '%s' "$reviewed_lines" | grep -ioE "$known" | tr '[:upper:]' '[:lower:]' | sort -u || true)"
+model_words() { tr -c 'a-zA-Z0-9' '\n' | tr '[:upper:]' '[:lower:]' | grep -xE "$known" | sort -u || true; }
+# `|| true` on each assignment: a missing Co-Authored-By line makes the leading grep exit 1, which
+# under `set -euo pipefail` would otherwise abort the assignment (a no-author range is legitimate).
+authors="$(printf '%s' "$msgs" | grep -iE '^[[:space:]]*Co-Authored-By:' | model_words || true)"
+reviewers="$(printf '%s' "$reviewed_lines" | model_words || true)"
 
+# Independence: if the reviewer names a recognized model, at least one named reviewer model must
+# DIFFER from every author model. A model-named review with NO Co-Authored-By cannot be cleared
+# (the author model is unknown, so a same-model self-review can't be ruled out) → rejected.
 if [[ -n "$reviewers" ]]; then
+  if [[ -z "$authors" ]]; then
+    echo "REVIEW-GATE FAIL: a model-named Reviewed-by but no Co-Authored-By to establish the author" >&2
+    echo "  model — independence cannot be verified. Add Co-Authored-By, or use a named human reviewer." >&2
+    exit 9
+  fi
   independent=0
   while IFS= read -r rm; do
     [[ -z "$rm" ]] && continue

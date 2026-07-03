@@ -1,0 +1,7 @@
+[
+  { "id": "indep-empty-coauthor", "severity": "blocker", "status": "resolved", "note": "no Co-Authored-By no longer clears a model-named review (t-rev9)" },
+  { "id": "self-forgery-trailing-text", "severity": "blocker", "status": "resolved", "note": "placeholder matched as a token, not EOL-anchored (t-rev10)" },
+  { "id": "model-substring-false-positive", "severity": "major", "status": "resolved", "note": "whole-word model extraction; Octopus no longer reads as Opus (t-rev11)" },
+  { "id": "findings-severity-case", "severity": "major", "status": "resolved", "note": "severity normalized to lowercase in jq (t-fg7)" },
+  { "id": "bypass-tests-missing", "severity": "major", "status": "resolved", "note": "regression tests added for all four bypasses" }
+]

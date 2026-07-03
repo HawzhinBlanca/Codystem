@@ -72,6 +72,14 @@ test("t-fg5: a missing record fails (exit 13)", () => {
   assert.equal(fg("specs/nope/x.findings.json").status, FAIL);
 });
 
+test("t-fg7: a capitalized severity ('Blocker'/'MAJOR') does not skip the gate (bypass #4)", () => {
+  for (const sev of ["Blocker", "MAJOR", "Major"]) {
+    withRecord(JSON.stringify([{ id: "x", severity: sev, status: "open" }]), (f) => {
+      assert.equal(fg(f).status, FAIL, `open ${sev} must still fail`);
+    });
+  }
+});
+
 test("t-fg6: the repo's OWN committed findings records have no unresolved blocker/major", () => {
   const res = fg(); // default scan of specs/*/reviews/*.findings.json
   assert.equal(res.status, 0, res.stderr);

@@ -22,9 +22,12 @@ function gate(messages: string) {
   return spawnSync("bash", [GATE, "--messages"], { input: messages, cwd: ROOT, encoding: "utf8" });
 }
 
-test("t-rev1: passes when a Reviewed-by trailer is present", () => {
-  const res = gate("feat: a thing\n\nReviewed-by: Sonnet (independent)\n");
-  assert.equal(res.status, 0);
+test("t-rev1: passes with a present, different-model Reviewed-by trailer", () => {
+  // (A model-named review needs a Co-Authored-By to establish the author model — see t-rev9.)
+  const res = gate(
+    "feat: a thing\n\nReviewed-by: Sonnet (independent)\nCo-Authored-By: Claude Opus 4.8 <n@a>\n"
+  );
+  assert.equal(res.status, 0, res.stderr);
 });
 
 test("t-rev2: FAILS when no Reviewed-by trailer is present", () => {
@@ -69,5 +72,30 @@ test("t-rev7: a named human/external reviewer (no model token) passes on presenc
 
 test("t-rev8: one different reviewer model suffices even if another matches the author", () => {
   const res = gate("feat: x\n\nReviewed-by: Claude Opus 4.8 + Claude Haiku 4.5" + AUTHOR);
+  assert.equal(res.status, OK, res.stderr);
+});
+
+// --- PR #22 review bypasses (regression tests) ---
+test("t-rev9: a model-named review with NO Co-Authored-By cannot be cleared (bypass #1)", () => {
+  // Without a Co-Authored-By the author model is unknown, so a same-model self-review can't be
+  // ruled out — reject rather than pass any reviewer.
+  const res = gate("feat: x\n\nReviewed-by: Claude Opus 4.5");
+  assert.equal(res.status, REJECT);
+  assert.match(res.stderr, /no Co-Authored-By/);
+});
+
+test("t-rev10: self-forgery with trailing text is still rejected (bypass #2)", () => {
+  for (const line of ["me obviously", "the author himself", "me, definitely not the author"]) {
+    assert.equal(
+      gate(`feat: x\n\nReviewed-by: ${line}` + AUTHOR).status,
+      REJECT,
+      `should reject: ${line}`
+    );
+  }
+});
+
+test("t-rev11: a human name CONTAINING a model substring is not false-rejected (bypass #3)", () => {
+  // "Octopus" contains "opus" — must NOT be read as the model Opus.
+  const res = gate("feat: x\n\nReviewed-by: Octopus Reviewer <o@example.com>" + AUTHOR);
   assert.equal(res.status, OK, res.stderr);
 });
