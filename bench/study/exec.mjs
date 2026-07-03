@@ -14,8 +14,15 @@ import { join } from "node:path";
 export function runCheck(fnName, solutionCode, testsCode, timeoutMs = 4000) {
   const dir = mkdtempSync(join(tmpdir(), "study-"));
   try {
-    const solution = String(solutionCode).replace(/\bexport\s+/g, ""); // make declarations local
+    // Strip a leading `export ` ONLY at the start of a line (a declaration), never inside a string
+    // literal or comment elsewhere in the source.
+    const solution = String(solutionCode).replace(/^(\s*)export\s+/gm, "$1");
+    // Trap process.exit so a solution that early-exits (bypassing the assertions) is scored a FAIL,
+    // not a spurious pass. Correctness is decided ONLY by a sentinel printed AFTER every assertion
+    // ran: no sentinel (early exit / crash / timeout) ⇒ fail.
     const src = `
+const __realExit = process.exit.bind(process);
+(process as any).exit = () => { throw new Error("solution called process.exit"); };
 ${solution}
 const fn = (typeof ${fnName} !== "undefined") ? (${fnName} as any) : undefined;
 let __failed = 0;
@@ -23,14 +30,19 @@ function check(cond: any, _msg?: any){ if(!cond){ __failed++; } }
 try {
 ${testsCode}
 } catch (e) { __failed++; }
-process.stdout.write(String(__failed));
-process.exit(__failed ? 1 : 0);
+(process as any).exit = __realExit;
+process.stdout.write("SENTINEL:" + __failed);
+__realExit(__failed ? 1 : 0);
 `;
     const f = join(dir, "run.ts");
     writeFileSync(f, src);
     const res = spawnSync("node", [f], { timeout: timeoutMs, encoding: "utf8" });
     if (res.error) return { pass: false, fails: -1, error: String(res.error.code ?? res.error) };
-    return { pass: res.status === 0, fails: Number(res.stdout) || (res.status === 0 ? 0 : 1) };
+    const m = /^SENTINEL:(\d+)$/.exec(String(res.stdout).trim());
+    if (!m)
+      return { pass: false, fails: -1, error: "no sentinel (early exit / crash / no output)" };
+    const fails = Number(m[1]);
+    return { pass: fails === 0 && res.status === 0, fails };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

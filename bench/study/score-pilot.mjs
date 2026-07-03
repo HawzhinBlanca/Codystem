@@ -39,9 +39,12 @@ for (const a of rawAttempts) {
   const t = tasks[a.taskId];
   if (!t) continue;
   const code = un(a.code);
+  // claimedDone = the agent actually produced a solution. An empty/refused/timed-out response
+  // (code === "") is a NON-completion, not a false "done" claim — do not inflate shipped counts.
+  const claimedDone = code.trim().length > 0;
   const correct = runCheck(t.fnName, code, t.hiddenTests).pass;
   const gateGreen = a.arm === "with" ? runCheck(t.fnName, code, t.visibleTests).pass : undefined;
-  attempts.push({ taskId: a.taskId, arm: a.arm, claimedDone: true, correct, gateGreen });
+  attempts.push({ taskId: a.taskId, arm: a.arm, claimedDone, correct, gateGreen });
 }
 
 const result = analyze(attempts);
