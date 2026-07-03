@@ -30,6 +30,8 @@ jobs:
           node bench/redteam/run.mjs --runs-file "$RUNNER_TEMP/round.jsonl" --seeds "$s $((s + 1)) $((s + 2))"
       - name: series gate — red on any regression in the committed rolling series
         run: node dist/redteam-check.js bench/redteam/runs.jsonl
+      - name: anti-decay heartbeat — red if any enforcement guarantee decayed (F5)
+        run: bash scripts/anti-decay-check.sh
       - name: dashboard (informational artifact — never fails the job)
         if: always()
         continue-on-error: true

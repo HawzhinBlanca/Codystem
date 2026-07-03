@@ -25,6 +25,7 @@
     "stress:mcp": "node bench/stress-mcp.mjs",
     "stress:extended": "node bench/stress-extended.mjs",
     "bench:reliability": "node bench/reliability.mjs",
+    "anti-decay": "bash scripts/anti-decay-check.sh",
     "redteam:run": "node bench/redteam/run.mjs",
     "redteam:check": "node dist/redteam-check.js",
     "redteam:dashboard": "node dist/redteam-dashboard.js",
