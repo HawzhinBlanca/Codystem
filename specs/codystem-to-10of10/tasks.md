@@ -41,7 +41,7 @@ the software + tests and prove what's provable locally; the owner wires the acco
 - [ ] E3 Study report ≥300/arm: false-done<5%, escaped-defect<2%, gate-catch≥90%, sig. vs control; BLUEPRINT claim bound to n/CI/date
 
 ## Phase F — scale, telemetry, operability, anti-decay
-- [ ] F1 Tenant-isolated state — proof: 10 concurrent flips × 2 repos × 5 actors, zero leakage/loss
+- [x] F1 Tenant-isolated state — `src/tenant.ts`: a tenant is (repo, actor); its ledger lives in an ISOLATED `<base>/<repo>/<actor>/` dir built from STRICTLY-VALIDATED segments (traversal/`..`/separators rejected, not silently sanitized → no cross-tenant escape or collision); flips are atomic O_APPEND (concurrency-safe). Proof: `src/tenant.test.ts` (t-tn1..5: validation, distinct dirs, traversal rejected, roundtrip, isolation) + `bench/tenant-isolation.mjs` (`pnpm run bench:tenant`) launches exactly **10 flips × 2 repos × 5 actors = 100 concurrent PROCESSES** and verifies **loss=0, leak=0** (every tenant has exactly its flips, none from another).
 - [ ] F2 Real per-session token/cost telemetry **[needs-owner: agent-host usage feed]** — proof: ≥20 rows reconcile ±5% with host readout
 - [ ] F3 Ops: gate-failure alerting (dedup) + rolling gate-failure-rate report
 - [ ] F4 One-command onboarding <10min (gates-active smoke) + versioned self-upgrade (0 provenance loss, version-mismatch refused)
