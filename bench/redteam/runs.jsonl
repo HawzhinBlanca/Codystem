@@ -1,0 +1,3 @@
+{"run":1,"ts":"2026-07-03T10:08:42.406Z","seeds":[1,2,3],"generated":180,"evaluated":220,"caught":220,"slips":0,"overblocks":0,"corpus":40,"source":"local"}
+{"run":2,"ts":"2026-07-03T10:08:48.260Z","seeds":[4,5,6],"generated":180,"evaluated":220,"caught":220,"slips":0,"overblocks":0,"corpus":40,"source":"local"}
+{"run":3,"ts":"2026-07-03T10:08:54.093Z","seeds":[7,8,9],"generated":180,"evaluated":220,"caught":220,"slips":0,"overblocks":0,"corpus":40,"source":"local"}
