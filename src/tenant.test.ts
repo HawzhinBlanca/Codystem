@@ -31,8 +31,24 @@ test("t-tn1: validSegment rejects traversal / separators / empties, accepts vali
     );
   }
   for (const ok of ["repo-1", "actor.2", "a_b", "ORG-repo_9"]) {
-    assert.equal(validSegment(ok), ok);
+    assert.equal(validSegment(ok), ok.toLowerCase()); // canonicalized to lowercase
   }
+});
+
+test("t-tn6: tenant ids are case-insensitive — 'Repo/Actor' and 'repo/actor' are ONE tenant (no case-collision leak)", () => {
+  // On a case-insensitive FS these would otherwise map to the same dir with different keys → leak.
+  withBase((base) => {
+    recordFlip(base, "Repo", "Actor", ev("X", "Repo", "Actor"));
+    recordFlip(base, "repo", "actor", ev("Y", "repo", "actor"));
+    // both canonicalize to the same tenant, so reading either sees both — deliberately one identity
+    assert.deepEqual(
+      readFlips(base, "REPO", "ACTOR")
+        .map((f) => f.task)
+        .sort(),
+      ["X", "Y"]
+    );
+    assert.equal(tenantDir(base, "Repo", "Actor"), tenantDir(base, "repo", "actor"));
+  });
 });
 
 test("t-tn2: distinct (repo, actor) map to distinct isolated directories", () => {

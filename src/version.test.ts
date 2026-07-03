@@ -10,12 +10,33 @@ import {
   checkUpgrade,
 } from "./version.js";
 
-test("t-ver1: parseVersion + cmpVersion order releases correctly", () => {
-  assert.deepEqual(parseVersion("v1.2.3"), { major: 1, minor: 2, patch: 3 });
+test("t-ver1: parseVersion is anchored + captures the tag; cmpVersion orders by core", () => {
+  assert.deepEqual(parseVersion("v1.2.3"), { major: 1, minor: 2, patch: 3, suffix: "" });
+  assert.deepEqual(parseVersion("1.2.3-beta.1"), {
+    major: 1,
+    minor: 2,
+    patch: 3,
+    suffix: "beta.1",
+  });
   assert.throws(() => parseVersion("not-a-version"), /unparseable/);
+  assert.throws(() => parseVersion("1.2.3.9-x"), /unparseable/); // 4th component: not semver
+  assert.throws(() => parseVersion("1.2.3 evil"), /unparseable/); // trailing garbage
   assert.equal(cmpVersion("1.0.0", "1.0.1"), -1);
   assert.equal(cmpVersion("2.0.0", "1.9.9"), 1);
   assert.equal(cmpVersion("1.2.3", "1.2.3"), 0);
+});
+
+test("t-ver7: a same-core but differently-TAGGED version is NOT a safe no-op (PR #23 blocker)", () => {
+  // The exploit: an upgrade to a re-tagged/garbage release was waved through as "no-op".
+  const d = upgradeDecision("1.2.3", "1.2.3-evil-rollback");
+  assert.equal(d.allowed, false);
+  assert.match(d.reason, /ambiguous|tag|prerelease/);
+  // garbage version → refused (unparseable), not silently accepted
+  assert.equal(upgradeDecision("1.2.3", "1.2.3.99999-x").allowed, false);
+  // and checkUpgrade inherits the refusal even with provenance intact
+  assert.equal(checkUpgrade("1.2.3", "1.2.3-evil-rollback", ["p1"], ["p1"]).ok, false);
+  // an EXACT re-run (identical full version) is still a legitimate no-op
+  assert.equal(upgradeDecision("1.2.3-beta.1", "1.2.3-beta.1").allowed, true);
 });
 
 test("t-ver2: a downgrade is refused", () => {

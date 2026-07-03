@@ -55,7 +55,7 @@ test("t-ops5: failureRate is whole-series and rolling (last N)", () => {
   assert.equal(failureRate([]), 0);
 });
 
-test("t-ops6: topFailures + openFailures reflect the series", () => {
+test("t-ops6: topFailures + openFailures reflect the series (keys namespaced by gate)", () => {
   const events = [
     ev("g", "fail", "a"),
     ev("g", "fail", "a"),
@@ -63,10 +63,22 @@ test("t-ops6: topFailures + openFailures reflect the series", () => {
     ev("g", "pass", "a"), // 'a' recovered; 'b' still open
   ];
   assert.deepEqual(topFailures(events, 2), [
-    { sig: "a", count: 2 },
-    { sig: "b", count: 1 },
+    { sig: "g/a", count: 2 },
+    { sig: "g/b", count: 1 },
   ]);
-  assert.deepEqual(openFailures(events), ["b"]);
+  assert.deepEqual(openFailures(events), ["g/b"]);
+});
+
+test("t-ops8: two DIFFERENT gates sharing a sig string do not collide (PR #23 finding)", () => {
+  const events = [ev("verify", "fail", "x"), ev("lint", "fail", "x")];
+  assert.equal(dedupedAlerts(events).length, 2, "distinct gates → distinct signatures");
+  assert.deepEqual(openFailures(events).sort(), ["lint/x", "verify/x"]);
+});
+
+test("t-ops9: failureRate(_, 0) is an empty window → 0, not the whole series", () => {
+  const events = [ev("g", "fail"), ev("g", "fail")];
+  assert.equal(failureRate(events, 0), 0);
+  assert.equal(failureRate(events), 1); // whole series still 100%
 });
 
 test("t-ops7: summarize + renderOpsReport are non-vacuous", () => {

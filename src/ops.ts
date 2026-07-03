@@ -28,7 +28,9 @@ export function parseEvents(text: string): GateEvent[] {
   return out;
 }
 
-const key = (e: GateEvent): string => e.sig ?? e.gate;
+// Grouping/dedup key is namespaced by gate, so two DIFFERENT gates that happen to use the same
+// `sig` string do not collide into one signature (the PR #23 finding). Readable form: "gate/sig".
+const key = (e: GateEvent): string => (e.sig ? `${e.gate}/${e.sig}` : e.gate);
 
 /**
  * Deduped alerts: a failure alerts only on the TRANSITION into failure for its signature. Repeated
@@ -52,9 +54,9 @@ export function dedupedAlerts(events: GateEvent[]): GateEvent[] {
   return out;
 }
 
-/** Failure rate over the whole series, or the last `lastN` runs. 0 for an empty series. */
+/** Failure rate over the whole series, or the last `lastN` runs (lastN=0 → an empty window → 0). */
 export function failureRate(events: GateEvent[], lastN?: number): number {
-  const slice = lastN && lastN > 0 ? events.slice(-lastN) : events;
+  const slice = lastN === undefined ? events : lastN <= 0 ? [] : events.slice(-lastN);
   if (!slice.length) return 0;
   const fails = slice.filter((e) => e.outcome === "fail").length;
   return Math.round((fails / slice.length) * 1000) / 1000;

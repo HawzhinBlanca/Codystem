@@ -6,12 +6,18 @@ export interface SemVer {
   major: number;
   minor: number;
   patch: number;
+  suffix: string; // prerelease/build tag after `-`/`+`, or "" — kept so a re-tag isn't seen as equal
 }
 
+// ANCHORED at end + captures the optional prerelease/build tag. Trailing garbage or a 4th numeric
+// component (e.g. "1.2.3.9-x") is rejected — so a differently-shaped string can't be laundered into
+// a matching major.minor.patch triple (the PR #23 blocker).
+const VERSION_RE = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+]([0-9A-Za-z][0-9A-Za-z.-]*))?$/;
+
 export function parseVersion(v: string): SemVer {
-  const m = /^v?(\d+)\.(\d+)\.(\d+)/.exec(String(v).trim());
+  const m = VERSION_RE.exec(String(v).trim());
   if (!m) throw new Error(`unparseable version: ${JSON.stringify(v)}`);
-  return { major: Number(m[1]), minor: Number(m[2]), patch: Number(m[3]) };
+  return { major: Number(m[1]), minor: Number(m[2]), patch: Number(m[3]), suffix: m[4] ?? "" };
 }
 
 /** -1 if a<b, 0 if equal, 1 if a>b. */
@@ -39,17 +45,27 @@ export function upgradeDecision(
   to: string,
   opts: { migrated?: boolean } = {}
 ): UpgradeDecision {
-  let c: number;
+  let pv: SemVer;
+  let tv: SemVer;
   try {
-    c = cmpVersion(to, from);
+    pv = parseVersion(from);
+    tv = parseVersion(to);
   } catch (e) {
     return { allowed: false, reason: (e as Error).message };
   }
+  const c = cmpVersion(to, from); // compares major.minor.patch only
+  // A true no-op requires the FULL version (including tag) to match; a same-core different-tag
+  // string is NOT a no-op — we cannot order two tags, so refuse it as an ambiguous mismatch.
+  if (c === 0 && pv.suffix === tv.suffix)
+    return { allowed: true, reason: `no-op: already at ${to}` };
   if (c < 0) return { allowed: false, reason: `refused: downgrade ${from} → ${to}` };
-  if (c === 0) return { allowed: true, reason: `no-op: already at ${to}` };
-  const fromMajor = parseVersion(from).major;
-  const toMajor = parseVersion(to).major;
-  if (toMajor > fromMajor && !opts.migrated) {
+  if (c === 0) {
+    return {
+      allowed: false,
+      reason: `refused: ${from} → ${to} share a version core but differ by tag/prerelease — ambiguous, not a safe no-op`,
+    };
+  }
+  if (tv.major > pv.major && !opts.migrated) {
     return {
       allowed: false,
       reason: `refused: major upgrade ${from} → ${to} requires an explicit migration`,
