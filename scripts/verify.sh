@@ -59,6 +59,10 @@ run_step() {
 }
 
 fail=0
+# Surface-integrity (A3): the enforcement files must match the committed manifest. In CI this
+# runs on a clean checkout, so it recomputes from the immutable git blob — a local edit that
+# skipped the hook still fails here. Cheap (sha256 over the enforcement surface).
+run_step "surface"    "SURFACE"    "bash '${_here}/surface-integrity.sh'" || fail=1
 # Anti-cheat scan (T5) runs first and always (fast + full): a suppressed test (.only/.skip/
 # xit/.todo) must never let the gate pass. Cheap (grep over tracked test files).
 run_step "anti-cheat" "ANTICHEAT" "bash '${_here}/anticheat-scan.sh'" || fail=1

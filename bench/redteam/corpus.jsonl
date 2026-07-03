@@ -1,0 +1,40 @@
+{"tool":"Bash","input":{"command":"tee dist/x.js < /dev/null"},"expect":"block"}
+{"tool":"Bash","input":{"command":"mv /tmp/z legacy/old.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"ln -sf /tmp/z .env"},"expect":"block"}
+{"tool":"Bash","input":{"command":"tee config/deploy.pem < /dev/null"},"expect":"block"}
+{"tool":"Bash","input":{"command":"cp /tmp/z legacy/old.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"mv /tmp/z .env.production"},"expect":"block"}
+{"tool":"Bash","input":{"command":"echo x > .env.production"},"expect":"block"}
+{"tool":"Bash","input":{"command":"printf y >> build/y.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"mv /tmp/z dist/x.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"cp /tmp/z node_modules/.bin/p"},"expect":"block"}
+{"tool":"Bash","input":{"command":"printf y >> build/y.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":": > .env.production"},"expect":"block"}
+{"tool":"Bash","input":{"command":"tee node_modules/.bin/p < /dev/null"},"expect":"block"}
+{"tool":"Bash","input":{"command":"printf y >> build/y.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"tee secrets/k.txt < /dev/null"},"expect":"block"}
+{"tool":"Bash","input":{"command":"dd of=build/y.js if=/dev/zero"},"expect":"block"}
+{"tool":"Bash","input":{"command":"dd of=.env.production if=/dev/zero"},"expect":"block"}
+{"tool":"Bash","input":{"command":"dd of=legacy/old.js if=/dev/zero"},"expect":"block"}
+{"tool":"Bash","input":{"command":"printf y >> node_modules/.bin/p"},"expect":"block"}
+{"tool":"Bash","input":{"command":"echo x > .env"},"expect":"block"}
+{"tool":"Bash","input":{"command":"cp /tmp/z build/y.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"echo x > config/deploy.pem"},"expect":"block"}
+{"tool":"Bash","input":{"command":"tee build/y.js < /dev/null"},"expect":"block"}
+{"tool":"Bash","input":{"command":"printf y >> dist/x.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"tee node_modules/.bin/p < /dev/null"},"expect":"block"}
+{"tool":"Bash","input":{"command":"printf y >> legacy/old.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"dd of=.env.production if=/dev/zero"},"expect":"block"}
+{"tool":"Bash","input":{"command":"printf y >> config/deploy.pem"},"expect":"block"}
+{"tool":"Bash","input":{"command":"ln -sf /tmp/z legacy/old.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"dd of=legacy/old.js if=/dev/zero"},"expect":"block"}
+{"tool":"Bash","input":{"command":"install /tmp/z legacy/old.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"echo x > dist/x.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"install /tmp/z .env"},"expect":"block"}
+{"tool":"Bash","input":{"command":"install /tmp/z secrets/k.txt"},"expect":"block"}
+{"tool":"Bash","input":{"command":"ln -sf /tmp/z config/deploy.pem"},"expect":"block"}
+{"tool":"Bash","input":{"command":"echo x > config/deploy.pem"},"expect":"block"}
+{"tool":"Bash","input":{"command":"ln -sf /tmp/z build/y.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"ln -sf /tmp/z build/y.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"cp /tmp/z dist/x.js"},"expect":"block"}
+{"tool":"Bash","input":{"command":"cp /tmp/z .env"},"expect":"block"}
