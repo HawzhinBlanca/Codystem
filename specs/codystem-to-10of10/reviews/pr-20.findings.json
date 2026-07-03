@@ -1,0 +1,7 @@
+[
+  { "id": "dup-id-double-count", "severity": "major", "status": "resolved", "note": "score() dedups by id + flags integrity failure (t-cs8)" },
+  { "id": "fp-boundary-untested", "severity": "major", "status": "resolved", "note": "t-cs7 pins fpRate==maxFpPct -> fail" },
+  { "id": "corpus-duplication", "severity": "major", "status": "resolved", "note": "harness dedups by code; byte-dup dropped; ANALYSIS corrected" },
+  { "id": "unmatched-verdict-silent", "severity": "minor", "status": "resolved", "note": "unmatchedVerdicts surfaced (t-cs9)" },
+  { "id": "cli-malformed-crash", "severity": "minor", "status": "resolved", "note": "parseJsonl skips malformed lines" }
+]

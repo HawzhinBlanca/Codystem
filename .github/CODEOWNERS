@@ -1,0 +1,17 @@
+# codystem-to-10of10 C3: a HUMAN in the merge loop for high-risk changes. PR #21 proved an automated
+# reviewer's structured verdict can disagree with its own reasoning, so the merge decision on the
+# highest-risk surface must not rest on a bot verdict alone. These paths require the owner's review.
+#
+# This file is DECLARATIVE — it is ENFORCED by the branch-protection setting
+# "Require review from Code Owners" on `main` (an owner action; see A2 [needs-owner]). Until that is
+# enabled, CODEOWNERS documents the intent and the owner reviews these paths by convention.
+
+# The enforcement surface + anything that can weaken a gate
+/scripts/                       @HawzhinBlanca
+/.github/                       @HawzhinBlanca
+/.claude/                       @HawzhinBlanca
+AGENTS.md                       @HawzhinBlanca
+CLAUDE.md                       @HawzhinBlanca
+
+# Review records / findings ledgers (the audit trail must not be silently rewritten)
+/specs/*/reviews/               @HawzhinBlanca
