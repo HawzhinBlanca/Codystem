@@ -15,26 +15,42 @@ not reviewer error). C2b's fix — an agent that **actively tries to break each 
 drops any that fall — took the FP rate to **0/8**. That is the point of the milestone: the FP number
 is now trustworthy, because the clean controls genuinely survive adversarial scrutiny.
 
-### Catch rate 93.3% — one genuine miss, one borderline case (reported, not cherry-picked)
-The reviewer missed 2 of 30 seeded bugs. We keep both in the corpus and report the honest number
-rather than curate to a round 100%:
-- **k57 (business hours) — a GENUINE reviewer miss.** The code `if (hour < 9 || hour > 17)` lets
-  `hour === 17` return `true`, but the function's own comment says 17:00 is *exclusive*. The code
-  contradicts its stated contract; the reviewer misread the boundary and called it correct. This is
-  a real, subtle boundary-vs-spec miss — exactly the kind of bug that is hard to catch, and an honest
-  data point on the reviewer's limits.
+### Catch rate: 28/30 raw (93.3%), ~27/30 (90%) by the reviewer's own reasoning
+The raw score (what `review-score.ts` computes from the committed `flaggedBuggy` fields) is 28/30 =
+93.3%, reproducible exactly. But this PR's own independent honesty review found something more
+interesting, disclosed here rather than buried: **two verdicts have a `flaggedBuggy` boolean that
+contradicts their own reasoning text**, and they happen to offset:
+- **k57 (business hours) — a real bug, scored as a miss (structured-output failure).** The code
+  `if (hour < 9 || hour > 17)` lets `hour === 17` return `true`, but the comment says 17:00 is
+  *exclusive*. The reviewer's reason text **correctly diagnoses this** ("…returns true, but per the
+  documented contract it should return false") — yet its structured `flaggedBuggy` field is `false`.
+  So this is NOT a comprehension miss; it is a self-consistency / structured-output failure (right
+  prose, wrong boolean).
+- **k20 (`findFirstIndexAtLeast`) — an inert bug, scored as a catch.** The `i <= values.length`
+  off-by-one reads `values[values.length]` (`undefined`), and `undefined >= threshold` is always
+  `false`, so the defect **never changes observable output**. The reason text concludes exactly that
+  ("…always false") — yet `flaggedBuggy` is `true`. A spurious catch of a weak (inert) seeded case.
 - **k27 (`formatRange`) — borderline under-specified.** `formatRange(start, end)` returns
-  `` `${end} to ${start}` ``. Whether that is a "bug" depends on the implied intent (a range reads
-  start→end); with no docstring the reviewer judged it self-consistent. A stricter seeded case would
-  state the intended output in a comment (as k57 does).
+  `` `${end} to ${start}` ``; whether that is a bug depends on unstated intent, so the reviewer's
+  "self-consistent" call is defensible.
+
+Because k57 (spurious miss) and k20 (spurious catch) cancel, the raw number is 93.3%; scored by the
+reviewer's actual *reasoning* it is 27/30 (90%). Either way it is honest and NOT curated to 100%.
+(Two verdict entries also leaked structured-output tags into their reason text — cleaned here, and
+the harness now strips them.)
+
+**This offsetting-inconsistency is itself a finding:** an automated reviewer's structured boolean can
+disagree with its own prose. Any gate that keys off the boolean alone will occasionally mis-score in
+both directions — a real reliability caveat for wiring LLM review into an auto-merge gate (which is
+why the current independent-review gate keeps a human in the merge loop, not just a bot verdict).
 
 ## Conclusion
 With an adversarially-validated corpus (0% FP, 30 seeded ≥ the 20 threshold), the different-model
-reviewer measures at **93.3% catch / 0% FP** — strong, and now *trustworthy* rather than confounded
-by label noise. C2's literal "N/N (100%) caught" bar is **not** met: the reviewer genuinely missed a
-subtle code-vs-comment boundary bug (k57). That is the honest finding — the review layer is excellent
-but not infallible, and forcing 100% by deleting the genuine miss would defeat the entire purpose of
-a benchmark. The enduring lesson (now proven twice): **a review benchmark is only as good as the
+reviewer measures at **93.3% catch raw / ~90% by its own reasoning, 0% FP** — strong, and now
+*trustworthy* rather than confounded by label noise. C2's literal "N/N (100%) caught" bar is **not**
+met, and the misses are honest (an inert seeded case, an under-specified one, and a real bug whose
+structured boolean disagreed with the correct prose diagnosis). The review layer is excellent but not
+infallible, and forcing 100% by deleting a miss would defeat the entire purpose of a benchmark. The enduring lesson (now proven twice): **a review benchmark is only as good as the
 adversarial validation of its ground truth** — which is exactly why the review layer itself is the
 highest-value part of the system.
 

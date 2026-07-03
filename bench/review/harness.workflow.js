@@ -180,7 +180,8 @@ const verdicts = await parallel(
       ).then((r) => ({
         id: c.id,
         flaggedBuggy: r ? r.flaggedBuggy : false,
-        reason: r ? r.reason : "no verdict",
+        // strip any leaked structured-output tags from the free-text reason (data hygiene)
+        reason: r ? String(r.reason).replace(/\s*<\/?[a-zA-Z][^>]*>\s*/g, " ").trim() : "no verdict",
       }))
   )
 );
