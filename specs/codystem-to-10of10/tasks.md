@@ -40,5 +40,7 @@ the software + tests and prove what's provable locally; the owner wires the acco
 - [ ] F3 Ops: gate-failure alerting (dedup) + rolling gate-failure-rate report
 - [ ] F4 One-command onboarding <10min (gates-active smoke) + versioned self-upgrade (0 provenance loss, version-mismatch refused)
 - [ ] F5 Anti-decay heartbeat per adopting repo (hooks/CI/verify match pinned hashes, no required check removed, gate non-inert)
+  - [x] F5a local heartbeat `scripts/anti-decay-check.sh` (exit 12 on decay): surface intact (reuses A3 manifest), gate non-inert (verify.sh keeps its no-op refusal), PreToolUse hook still wires the guard, guard still BLOCKS a protected write + a dangerous command. Wired into `.github/workflows/redteam.yml` (PR + nightly) and `pnpm run anti-decay`. Proof: `src/anti-decay.test.ts` (t-adr1..5, 5/5) — healthy→0, and each injected decay (inert guard / unwired hook / neutered gate / failing surface) →12.
+  - [ ] F5b "no required CI check removed" invariant — needs the GitHub branch-protection API + admin token; same surface as A2's drift job **[needs-owner: admin token]**.
 
 ## 10/10 = every numeric gate above holds simultaneously, on a re-run basis (see plan.md).
