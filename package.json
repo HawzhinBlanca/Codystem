@@ -25,6 +25,8 @@
     "stress:mcp": "node bench/stress-mcp.mjs",
     "stress:extended": "node bench/stress-extended.mjs",
     "bench:reliability": "node bench/reliability.mjs",
+    "redteam:run": "node bench/redteam/run.mjs",
+    "redteam:dashboard": "node dist/redteam-dashboard.js",
     "dev": "vite"
   },
   "dependencies": {

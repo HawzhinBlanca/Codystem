@@ -1,0 +1,36 @@
+name: redteam
+# codystem-to-10of10 D3: CONTINUOUS red-team hunt. On every PR and nightly, generate attacks across
+# a rotating seed window + the committed regression corpus, run them through the guard on a clean
+# runner, and RED on any SLIP (a real bypass) or OVERBLOCK (over-block regression). This is the
+# "continuous" half of D3; the rolling metrics series (bench/redteam/runs.jsonl) + dashboard accrue
+# over runs and are summarized by src/redteam-metrics.ts. NOTE: this is an informational check, not
+# (yet) a required merge-gate — promoting it to required is an owner branch-protection step.
+on:
+  pull_request:
+  schedule:
+    - cron: "17 4 * * *" # nightly
+  workflow_dispatch:
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version from package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "pnpm" }
+      - run: pnpm install --frozen-lockfile
+      - name: continuous red-team hunt (reds on any SLIP / OVERBLOCK)
+        run: |
+          s=$(date +%-j)   # day-of-year, no leading zero (avoids octal in $(()))
+          node bench/redteam/run.mjs --runs-file "$RUNNER_TEMP/runs.jsonl" --seeds "$s $((s + 1)) $((s + 2))"
+      - name: render dashboard (artifact)
+        if: always()
+        run: |
+          pnpm run build:cli
+          node dist/redteam-dashboard.js "$RUNNER_TEMP/runs.jsonl" "$RUNNER_TEMP/dashboard.md" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: redteam-dashboard
+          path: ${{ runner.temp }}/dashboard.md
+          if-no-files-found: ignore
