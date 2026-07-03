@@ -1,0 +1,8 @@
+{"ts":"2026-07-03T09:40:01Z","gate":"verify","outcome":"pass"}
+{"ts":"2026-07-03T09:40:01Z","gate":"stress","outcome":"pass"}
+{"ts":"2026-07-03T09:40:01Z","gate":"independent-review","outcome":"fail","sig":"no-reviewed-by-trailer"}
+{"ts":"2026-07-03T09:41:12Z","gate":"independent-review","outcome":"fail","sig":"no-reviewed-by-trailer"}
+{"ts":"2026-07-03T09:42:30Z","gate":"independent-review","outcome":"pass","sig":"no-reviewed-by-trailer"}
+{"ts":"2026-07-03T10:05:00Z","gate":"verify","outcome":"pass"}
+{"ts":"2026-07-03T10:05:00Z","gate":"redteam","outcome":"pass"}
+{"ts":"2026-07-03T10:30:00Z","gate":"verify","outcome":"pass"}

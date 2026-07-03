@@ -1,0 +1,7 @@
+[
+  { "id": "version-retag-noop", "severity": "blocker", "status": "resolved", "note": "anchored tag-aware parse; same-core different-tag refused (t-ver7)" },
+  { "id": "tenant-case-collision", "severity": "major", "status": "resolved", "note": "lowercase-canonicalized segments (t-tn6)" },
+  { "id": "readflips-truncated-line", "severity": "minor", "status": "resolved", "note": "skip a partial trailing record" },
+  { "id": "ops-key-flat-namespace", "severity": "minor", "status": "resolved", "note": "key namespaced by gate (t-ops8)" },
+  { "id": "failurerate-lastn-zero", "severity": "minor", "status": "resolved", "note": "lastN<=0 → empty window → 0 (t-ops9)" }
+]
