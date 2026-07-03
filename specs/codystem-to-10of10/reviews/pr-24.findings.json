@@ -1,0 +1,5 @@
+[
+  { "id": "scorer-process-exit-bypass", "severity": "blocker", "status": "resolved", "note": "trap process.exit + require all-assertions-ran sentinel (t-ex2)" },
+  { "id": "claimeddone-hardcoded", "severity": "major", "status": "resolved", "note": "claimedDone derived from a non-empty solution" },
+  { "id": "export-strip-string-corruption", "severity": "minor", "status": "resolved", "note": "strip export only at line-start (t-ex4)" }
+]
