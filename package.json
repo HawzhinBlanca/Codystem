@@ -26,6 +26,7 @@
     "stress:extended": "node bench/stress-extended.mjs",
     "bench:reliability": "node bench/reliability.mjs",
     "bench:tenant": "node bench/tenant-isolation.mjs",
+    "mutation": "node bench/mutation/run.mjs",
     "ops:report": "node dist/ops-report.js",
     "onboard": "bash scripts/onboard.sh",
     "review:score": "node dist/review-score-report.js",

@@ -121,3 +121,72 @@ test("t-m8: summarize + renderDashboard are non-vacuous and reflect the series",
   assert.match(md, /accruing: 3\/8/); // honest about the temporal requirement
   assert.match(md, /catch rate/);
 });
+
+// --- mutation-hardening: pin exact arithmetic + each regression condition + the render state ---
+test("t-m10: exact catchRate / corpusGrowth / discoverySlope pin the arithmetic", () => {
+  assert.equal(catchRate([rec(1, { caught: 90, slips: 10 })]), 0.9); // 90/(90+10)
+  assert.equal(corpusGrowth([rec(1, { corpus: 40 }), rec(2, { corpus: 47 })]), 7); // last-first
+  assert.equal(corpusGrowth([rec(1)]), 0); // <2 runs → 0 (kills the length guard flip)
+  // slips [0,1,2] over index [0,1,2] → least-squares slope is exactly 1
+  assert.equal(
+    discoverySlope([rec(1, { slips: 0 }), rec(2, { slips: 1 }), rec(3, { slips: 2 })]),
+    1
+  );
+});
+
+test("t-m11: d3Regressions flags EACH condition; d3Verdict slope boundary is inclusive at 0", () => {
+  assert.match(
+    d3Regressions([rec(1, { slips: 0 }), rec(2, { slips: 1 }), rec(3, { slips: 3 })]).join(";"),
+    /discovery slope/ // rising slope (>0) must be flagged
+  );
+  assert.match(d3Regressions([rec(1, { caught: 90, slips: 10 })]).join(";"), /catch rate/);
+  assert.match(d3Regressions([rec(1), rec(2, { slips: 1 })]).join(";"), /MTTC/); // ∞ open bypass
+  const flat8 = Array.from({ length: 8 }, (_, i) => rec(i + 1, { corpus: 40 + i }));
+  assert.equal(d3Verdict(flat8, 8).pass, true); // slope===0 passes (slope<=0 inclusive at 0)
+});
+
+test("t-m12: renderDashboard shows the exact MTTC / open-bypass state", () => {
+  assert.match(renderDashboard([rec(1), rec(2, { slips: 1 })], 8), /∞ \(open bypass!\)/); // MTTC null
+  assert.match(renderDashboard([rec(1), rec(2)], 8), /MTTC \(runs\) \| 0/); // MTTC 0
+});
+
+// --- mutation-hardening round 2 (PR #25 review): kill the arithmetic / guard / reason-text gaps ---
+test("t-m13: overblocks count in catchRate; corpusGrowth ≥3-run & discoverySlope 2-run guards; summary rounding", () => {
+  // overblocks are part of the attack denominator; every other test uses overblocks:0, so the
+  // `+ r.overblocks` term was invisible. A run WITH overblocks pins it (`+ → -` would give 90/90).
+  assert.equal(catchRate([rec(1, { caught: 90, slips: 5, overblocks: 5 })]), 0.9); // 90/(90+5+5)
+  // corpusGrowth on ≥3 runs: the `length < 2` guard flipped to `> 2` would wrongly early-return 0.
+  assert.equal(
+    corpusGrowth([rec(1, { corpus: 40 }), rec(2, { corpus: 45 }), rec(3, { corpus: 50 })]),
+    10
+  );
+  // discoverySlope on EXACTLY 2 runs: the `n < 2` guard flipped to `<= 2` would wrongly return 0.
+  assert.equal(discoverySlope([rec(1, { slips: 0 }), rec(2, { slips: 2 })]), 2);
+  // summarize's rounded discoverySlope on a rising series: `* 1000 / 1000` — a `/ → *` yields 1e6.
+  assert.equal(
+    summarize([rec(1, { slips: 0 }), rec(2, { slips: 1 }), rec(3, { slips: 2 })]).discoverySlope,
+    1
+  );
+});
+
+test("t-m14: d3Verdict emits EACH failure reason exactly when its condition holds (decoupled from pass)", () => {
+  const clean8 = Array.from({ length: 8 }, (_, i) => rec(i + 1, { corpus: 40 + i }));
+  const passReasons = d3Verdict(clean8, 8).reasons.join(";");
+  // A passing verdict must NOT carry the per-condition failure reasons — pins the reason checks as
+  // strict `<`/`>`/`===`, not the `<=`/`>=`/`!==` mutants that would fire them at the clean boundary.
+  assert.doesNotMatch(passReasons, /catch rate/); // line 174 `< 100`, not `<=`
+  assert.doesNotMatch(passReasons, /discovery slope/); // line 176 `> 0`, not `>=`
+  assert.doesNotMatch(passReasons, /MTTC is ∞/); // line 178 `=== null`, not `!==`
+  // A leaky series (catch rate < 100) MUST emit the catch-rate reason (pins `< 100`, not `> 100`).
+  const leaky = [
+    ...Array.from({ length: 7 }, (_, i) => rec(i + 1)),
+    rec(8, { caught: 90, slips: 10 }),
+  ];
+  assert.match(d3Verdict(leaky, 8).reasons.join(";"), /catch rate/);
+  // A rising-slope series MUST emit the discovery-slope reason (pins `> 0`, not `< 0`).
+  const rising = Array.from({ length: 8 }, (_, i) => rec(i + 1, { corpus: 40 + i, slips: i }));
+  assert.match(d3Verdict(rising, 8).reasons.join(";"), /discovery slope/);
+  // An open bypass at series end MUST emit the MTTC reason (pins `=== null`, not `!== null`).
+  const open = [...Array.from({ length: 7 }, (_, i) => rec(i + 1)), rec(8, { slips: 1 })];
+  assert.match(d3Verdict(open, 8).reasons.join(";"), /MTTC is ∞/);
+});

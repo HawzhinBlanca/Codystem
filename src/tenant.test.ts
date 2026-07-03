@@ -33,6 +33,9 @@ test("t-tn1: validSegment rejects traversal / separators / empties, accepts vali
   for (const ok of ["repo-1", "actor.2", "a_b", "ORG-repo_9"]) {
     assert.equal(validSegment(ok), ok.toLowerCase()); // canonicalized to lowercase
   }
+  // boundary: length limit is EXCLUSIVE at 128 — a 128-char id is accepted, 129 rejected.
+  assert.equal(validSegment("a".repeat(128)), "a".repeat(128));
+  assert.throws(() => validSegment("a".repeat(129)), /invalid tenant segment/);
 });
 
 test("t-tn6: tenant ids are case-insensitive — 'Repo/Actor' and 'repo/actor' are ONE tenant (no case-collision leak)", () => {

@@ -1,0 +1,8 @@
+[
+  { "id": "study-survivors-falsely-equivalent", "severity": "blocker", "status": "resolved", "note": "study.ts:61/69/72/134 were real gaps, not equivalent; killed by numeric-reference-pinned twoProportionP tests + a reachable α=0.05 boundary (twoProportionP(13,65,23,65)===0.05) and a ×100 render pin (t-st8, t-st9). docs/MUTATION.md corrected with an explicit retraction." },
+  { "id": "redteam-survivors-undocumented", "severity": "major", "status": "resolved", "note": "14 redteam-metrics survivors: 9 killed (t-m13, t-m14 — overblocks term, corpusGrowth/discoverySlope guards, summarize rounding, and each d3Verdict reason-text check); the residual 5 are each PROVEN equivalent and enumerated in docs/MUTATION.md." },
+  { "id": "timeout-conflated-with-killed", "severity": "major", "status": "resolved", "note": "mutate.mjs now detects ETIMEDOUT, reports timeouts as a distinct INCONCLUSIVE class, and never counts them as killed — a hang can no longer inflate the score. Surfaced in report.md + console." },
+  { "id": "maxmutants-silent-undersampling", "severity": "minor", "status": "resolved", "note": "even-spaced cap that actually reaches maxMutants + sampledFrom disclosure in the report; cap raised to 400 so all modules enumerate fully (no sampling occurs today)." },
+  { "id": "ci-mutation-no-timeout", "severity": "minor", "status": "resolved", "note": "added timeout-minutes: 20 to the ci.yml mutation job so a future spinning mutant fails fast instead of hanging the 360-min default." },
+  { "id": "wording-18-more-classes", "severity": "minor", "status": "resolved", "note": "tasks.md now states 79.3% → 97.0% (229/236 killed) accurately instead of the imprecise 'killed 18 more classes'." }
+]
