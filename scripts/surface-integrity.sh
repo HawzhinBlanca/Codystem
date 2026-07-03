@@ -24,7 +24,8 @@ else
     scripts/anticheat-scan.sh scripts/provenance-check.sh scripts/plan-gate-check.sh
     scripts/review-gate-check.sh scripts/drift-check.sh scripts/sot-check.sh
     scripts/validate-tests.sh scripts/surface-integrity.sh
-    .claude/settings.json .github/workflows/ci.yml
+    scripts/anti-decay-check.sh scripts/findings-gate-check.sh
+    .claude/settings.json .github/workflows/ci.yml .github/CODEOWNERS
   )
 fi
 

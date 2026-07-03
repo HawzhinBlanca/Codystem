@@ -1,0 +1,5 @@
+[
+  { "id": "k57-framing", "severity": "major", "status": "resolved", "note": "reframed as structured-output failure in ANALYSIS.md" },
+  { "id": "k20-boolean-vs-reasoning", "severity": "major", "status": "resolved", "note": "offsetting inconsistency disclosed; ~90% by-reasoning reported" },
+  { "id": "leaked-output-xml", "severity": "minor", "status": "resolved", "note": "cleaned verdict data; harness strips tags" }
+]

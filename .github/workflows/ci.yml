@@ -41,7 +41,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
-      - name: require a Reviewed-by trailer
+      - name: require an INDEPENDENT (different-model) Reviewed-by trailer
         run: |
           git fetch origin "${{ github.base_ref }}" --depth=50 || true
           bash scripts/review-gate-check.sh "origin/${{ github.base_ref }}..HEAD"
+      - name: findings-gate — no unresolved blocker/major review findings (C3)
+        run: bash scripts/findings-gate-check.sh
