@@ -4,18 +4,20 @@ Measures whether the independent (different-model) reviewer catches KNOWN plante
 it false-flags clean controls. Corpus is blind to the reviewer (labels withheld); this scores its
 verdicts against ground truth.
 
-**Verdict:** ⏳/❌ — only 16/20 seeded bugs (corpus too small); catch rate 93.8% < 100% (1 missed); false-positive rate 54.5% ≥ 10%
+**Verdict:** ⏳/❌ — only 16/20 seeded bugs (corpus too small); catch rate 93.8% < 100% (1 missed); false-positive rate 50% ≥ 10%
 
 | metric | value |
 |---|---|
 | seeded bugs | 16 |
-| clean controls | 11 |
+| clean controls | 10 |
 | caught (true positives) | 15/16 |
 | missed (false negatives) | 1 |
-| false positives | 6/11 |
+| false positives | 5/10 |
 | catch rate | 93.8% |
-| false-positive rate | 54.5% |
+| false-positive rate | 50% |
 | unscored (no verdict) | 0 |
+| duplicate case ids | none |
+| unmatched verdicts | 0 |
 
 ## By bug class
 | class | caught |

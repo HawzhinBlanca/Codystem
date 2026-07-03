@@ -26,6 +26,8 @@ export interface Score {
   catchRatePct: number; // caught / seeded  (100 desired)
   fpRatePct: number; // falsePositives / clean  (<10 desired)
   byClass: Record<string, { seeded: number; caught: number }>;
+  duplicateIds: string[]; // case ids seen more than once (deduped: first kept) — integrity failure
+  unmatchedVerdicts: string[]; // verdict ids with no matching case (stale/mismatched verdicts)
   pass: boolean;
   reasons: string[];
 }
@@ -47,14 +49,31 @@ export function score(
   const maxFpPct = opts.maxFpPct ?? 10;
   const verdictById = new Map(verdicts.map((v) => [v.id, v]));
 
-  const seededCases = cases.filter((c) => c.buggy);
-  const cleanCases = cases.filter((c) => !c.buggy);
+  // Dedup by id (first wins) so a duplicate id can never double-count one verdict as two catches/FPs;
+  // the duplicates are surfaced as an integrity failure rather than silently inflating the score.
+  const seenIds = new Set<string>();
+  const duplicateIds: string[] = [];
+  const uniqueCases: ReviewCase[] = [];
+  for (const c of cases) {
+    if (seenIds.has(c.id)) {
+      duplicateIds.push(c.id);
+      continue;
+    }
+    seenIds.add(c.id);
+    uniqueCases.push(c);
+  }
+  const unmatchedVerdicts = [...new Set(verdicts.map((v) => v.id))].filter(
+    (id) => !seenIds.has(id)
+  );
+
+  const seededCases = uniqueCases.filter((c) => c.buggy);
+  const cleanCases = uniqueCases.filter((c) => !c.buggy);
   const unscored: string[] = [];
   let caught = 0;
   let falsePositives = 0;
   const byClass: Record<string, { seeded: number; caught: number }> = {};
 
-  for (const c of cases) {
+  for (const c of uniqueCases) {
     const v = verdictById.get(c.id);
     if (!v) unscored.push(c.id);
     if (c.buggy) {
@@ -75,12 +94,20 @@ export function score(
   const fpRatePct = pct(falsePositives, clean);
 
   const reasons: string[] = [];
+  if (duplicateIds.length)
+    reasons.push(`duplicate case id(s) ${duplicateIds.join(",")} — corpus integrity failure`);
   if (seeded < minSeeded)
     reasons.push(`only ${seeded}/${minSeeded} seeded bugs (corpus too small)`);
   if (catchRatePct < 100)
     reasons.push(`catch rate ${catchRatePct}% < 100% (${seeded - caught} missed)`);
   if (fpRatePct >= maxFpPct) reasons.push(`false-positive rate ${fpRatePct}% ≥ ${maxFpPct}%`);
-  const pass = seeded >= minSeeded && catchRatePct === 100 && fpRatePct < maxFpPct;
+  if (unmatchedVerdicts.length)
+    reasons.push(`${unmatchedVerdicts.length} verdict(s) match no case (stale/mismatched corpus)`);
+  const pass =
+    duplicateIds.length === 0 &&
+    seeded >= minSeeded &&
+    catchRatePct === 100 &&
+    fpRatePct < maxFpPct;
   if (pass)
     reasons.push(
       `${seeded} seeded caught ${caught}/${seeded}, ${falsePositives}/${clean} FP (${fpRatePct}%)`
@@ -89,7 +116,7 @@ export function score(
   return {
     seeded,
     clean,
-    scored: cases.length - unscored.length,
+    scored: uniqueCases.length - unscored.length,
     unscored,
     caught,
     missed: seeded - caught,
@@ -97,6 +124,8 @@ export function score(
     catchRatePct,
     fpRatePct,
     byClass,
+    duplicateIds,
+    unmatchedVerdicts,
     pass,
     reasons,
   };
@@ -126,6 +155,8 @@ verdicts against ground truth.
 | catch rate | ${s.catchRatePct}% |
 | false-positive rate | ${s.fpRatePct}% |
 | unscored (no verdict) | ${s.unscored.length} |
+| duplicate case ids | ${s.duplicateIds.length ? s.duplicateIds.join(", ") : "none"} |
+| unmatched verdicts | ${s.unmatchedVerdicts.length} |
 
 ## By bug class
 | class | caught |

@@ -74,3 +74,33 @@ test("t-cs6: byClass breaks catches down per defect class; report is non-vacuous
   assert.match(md, /catch rate/);
   assert.match(md, /20 seeded caught 20\/20/);
 });
+
+test("t-cs7: the FP gate is strict-less-than — an FP rate of EXACTLY maxFpPct fails (boundary)", () => {
+  const cases = corpus(20, 20); // 20 clean controls
+  const v = perfect(cases).map((x) =>
+    x.id === "c0" || x.id === "c1" ? { ...x, flaggedBuggy: true } : x
+  );
+  const s = score(cases, v); // 2/20 = exactly 10.0% FP
+  assert.equal(s.fpRatePct, 10);
+  assert.equal(s.pass, false, "10% == maxFpPct must NOT pass (strict <)");
+  assert.match(s.reasons.join(";"), /false-positive rate 10% ≥ 10%/);
+});
+
+test("t-cs8: duplicate case ids are an integrity failure, not double-counted", () => {
+  const base = corpus(20, 8); // b0..b19, c0..c7
+  const cases = [...base, { id: "b0", bugClass: "off-by-one", buggy: true }]; // b0 duplicated
+  const s = score(cases, perfect(base));
+  assert.deepEqual(s.duplicateIds, ["b0"]);
+  assert.equal(s.seeded, 20, "deduped back to 20 seeded, not 21");
+  assert.equal(s.caught, 20, "b0's single verdict is counted once, not twice");
+  assert.equal(s.pass, false, "a corpus-integrity failure cannot pass");
+  assert.match(s.reasons.join(";"), /duplicate case id/);
+});
+
+test("t-cs9: a verdict matching no case is surfaced as unmatched (stale corpus)", () => {
+  const cases = corpus(20, 8);
+  const v = [...perfect(cases), { id: "ghost", flaggedBuggy: true }];
+  const s = score(cases, v);
+  assert.deepEqual(s.unmatchedVerdicts, ["ghost"]);
+  assert.match(s.reasons.join(";"), /match no case/);
+});

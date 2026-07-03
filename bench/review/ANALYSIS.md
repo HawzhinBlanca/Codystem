@@ -1,9 +1,18 @@
 # C2 seeded-bug harness — first measured run (analysis)
 
-Raw score (`bench/review/report.md`): **15/16 seeded caught (93.8%)**, **6/11 clean flagged (54.5% FP)**
-over a 27-case corpus generated + validated + blind-reviewed by the workflow (Sonnet, different model
-from the Opus author). But the raw numbers are NOT the interesting part — reading the actual verdicts
-is, and it surfaces a real methodological lesson about building review benchmarks.
+Score (`bench/review/report.md`, after de-duplication): **15/16 seeded caught (93.8%)**, **5/10 clean
+flagged (50% FP)** over a 26-case corpus generated + validated + blind-reviewed by the workflow
+(Sonnet, different model from the Opus author). But the raw numbers are NOT the interesting part —
+reading the actual verdicts is, and it surfaces a real methodological lesson about building review
+benchmarks.
+
+> **Correction (via the PR #20 independent review).** The first raw run reported 6/11 FP over 27
+> cases. The independent review caught that two of those cases were byte-identical (`k5` == `k17`,
+> the same `fetchWithRetry`) and a third (`k23`) a rename of the same logic — i.e. the "retry throws
+> undefined on attempts≤0" edge case was one issue triple-counted, inflating both the FP count and
+> the apparent breadth. Fixed: the harness now de-dupes by normalized code, the byte-duplicate was
+> dropped from the committed corpus (→ 26 cases, 5/10 FP), and the retry pattern is described below
+> as the SINGLE edge case it is. The corrected numbers are used throughout.
 
 ## The 1 "miss" is an under-specified case, not a weak reviewer
 `k25` (missing-await): `const record = db.findById(userId)` is not awaited. The reviewer said "no
@@ -12,10 +21,11 @@ genuine defect — there's no async work actually awaited, but that's not a bug.
 bug is not determinable from the code alone, so this is a corpus defect (the seeded bug must be
 provable from what the reviewer sees), not a reviewer failure.
 
-## All 6 "false positives" are REAL edge cases in leniently-validated controls
-Every clean control the reviewer flagged, it flagged for a genuine reason:
-- `k5`/`k17`/`k23` (`retryFetch`): with `attempts <= 0` the loop never runs and the function does
-  `throw undefined` — a real contract defect.
+## The 5 "false positives" are 4 REAL edge cases in leniently-validated controls
+Every clean control the reviewer flagged, it flagged for a genuine reason (the retry pattern appears
+in two renamed controls, `k5` and `k23`, but is ONE underlying issue):
+- `k5` + `k23` (`fetchWithRetry`/`retryFetch`, same logic): with `attempts <= 0` the loop never runs
+  and the function does `throw undefined` — a real contract defect.
 - `k16` (`parseDateSafe`): accepts `2024-13-01` (month 13 rolls over via the `Date` constructor)
   while claiming to "safe parse" — a real validation gap.
 - `k28` (`daysBetween`): plain millisecond subtraction is off-by-one across DST transitions.

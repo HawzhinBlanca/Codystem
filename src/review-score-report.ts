@@ -13,11 +13,19 @@ const outFile = process.argv[4] ?? "bench/review/report.md";
 
 function parseJsonl<T>(f: string): T[] {
   if (!existsSync(f)) return [];
-  return readFileSync(f, "utf8")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l) => JSON.parse(l) as T);
+  const out: T[] = [];
+  let skipped = 0;
+  for (const raw of readFileSync(f, "utf8").split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    try {
+      out.push(JSON.parse(line) as T);
+    } catch {
+      skipped++; // a malformed line must not crash a report-only tool
+    }
+  }
+  if (skipped) console.error(`review-score: skipped ${skipped} malformed line(s) in ${f}`);
+  return out;
 }
 
 const cases = parseJsonl<ReviewCase>(corpusFile);
