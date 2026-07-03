@@ -91,3 +91,24 @@ test("t-ops7: summarize + renderOpsReport are non-vacuous", () => {
   assert.match(md, /failure rate/);
   assert.match(md, /deduped alerts/);
 });
+
+// --- mutation-hardening: pin exact counts/rates + tie-break so a rounding/comparison flip is caught ---
+test("t-ops10: summarize pins EXACT failures + failure-rate + rolling-rate", () => {
+  const events = [ev("g", "pass"), ev("g", "fail"), ev("g", "fail"), ev("g", "pass")]; // 2 fail / 4
+  const s = summarize(events);
+  assert.equal(s.failures, 2); // kills outcome===/!== flip
+  assert.equal(s.failureRatePct, 50); // 2/4 → kills *1000//10 rounding flips
+  assert.equal(s.rollingRatePct, 50);
+  const one = summarize([ev("g", "fail"), ev("g", "pass"), ev("g", "pass"), ev("g", "pass")]);
+  assert.equal(one.failureRatePct, 25); // 1/4 — distinguishes *↔/ mutants
+  assert.equal(one.failures, 1); // UNBALANCED (1 fail, 3 pass) so ===fail vs !==fail differ
+});
+
+test("t-ops11: topFailures tie-break is alphabetical by signature (stable, deterministic)", () => {
+  // equal counts → sort must fall through to localeCompare; a &&/- mutation reorders these.
+  const events = [ev("a", "fail", "y"), ev("a", "fail", "x")]; // both count 1 → "a/x" before "a/y"
+  assert.deepEqual(
+    topFailures(events).map((t) => t.sig),
+    ["a/x", "a/y"]
+  );
+});

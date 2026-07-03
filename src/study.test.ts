@@ -77,3 +77,44 @@ test("t-st5: a WITHOUT-only or tiny run is honestly flagged UNDERPOWERED in the 
   assert.match(md, /p = /);
   assert.match(md, /gate-catch/);
 });
+
+// --- mutation-hardening: pin the exact threshold boundaries (gate-catch ≥0.9, power ≥300/arm) ---
+function armAttempts(
+  arm: "with" | "without",
+  n: number,
+  buggyCaught: number,
+  buggyEscaped: number
+): Attempt[] {
+  const a: Attempt[] = [];
+  for (let i = 0; i < buggyCaught; i++)
+    a.push({ taskId: `c${i}`, arm, claimedDone: true, correct: false, gateGreen: false });
+  for (let i = 0; i < buggyEscaped; i++)
+    a.push({ taskId: `e${i}`, arm, claimedDone: true, correct: false, gateGreen: true });
+  for (let i = a.length; i < n; i++)
+    a.push({ taskId: `ok${i}`, arm, claimedDone: true, correct: true, gateGreen: true });
+  return a;
+}
+
+test("t-st6: gate-catch ≥90% is INCLUSIVE at exactly 90% (boundary)", () => {
+  // 9 caught of 10 buggy claims = exactly 0.9 → targetsMet true; 8/10 = 0.8 → false.
+  assert.equal(analyze(armAttempts("with", 20, 9, 1)).targetsMet.gateCatchOver90, true);
+  assert.equal(analyze(armAttempts("with", 20, 8, 2)).targetsMet.gateCatchOver90, false);
+});
+
+test("t-st7: 'underpowered' flips exactly at n=300/arm (boundary + the && between arms)", () => {
+  const both300 = renderStudyReport(
+    analyze([...armAttempts("with", 300, 0, 0), ...armAttempts("without", 300, 0, 0)]),
+    { date: "d" }
+  );
+  assert.doesNotMatch(both300, /UNDERPOWERED/); // 300 & 300 → powered
+  const withLow = renderStudyReport(
+    analyze([...armAttempts("with", 299, 0, 0), ...armAttempts("without", 300, 0, 0)]),
+    { date: "d" }
+  );
+  assert.match(withLow, /UNDERPOWERED/); // WITH arm 299 < 300 → the && requires BOTH arms
+  const withoutLow = renderStudyReport(
+    analyze([...armAttempts("with", 300, 0, 0), ...armAttempts("without", 299, 0, 0)]),
+    { date: "d" }
+  );
+  assert.match(withoutLow, /UNDERPOWERED/); // WITHOUT arm 299 → pins the SECOND >= as well
+});

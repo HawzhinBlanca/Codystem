@@ -47,3 +47,16 @@ jobs:
           bash scripts/review-gate-check.sh "origin/${{ github.base_ref }}..HEAD"
       - name: findings-gate — no unresolved blocker/major review findings (C3)
         run: bash scripts/findings-gate-check.sh
+
+  # TEST-QUALITY gate: mutation testing proves the tests actually catch bugs (green ≠ correct). Its
+  # own job — it re-runs a suite per mutant, so it is slower than verify.sh.
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "pnpm" }
+      - run: pnpm install --frozen-lockfile
+      - name: mutation score must hold the ratchet floor (test quality has not regressed)
+        run: pnpm run mutation

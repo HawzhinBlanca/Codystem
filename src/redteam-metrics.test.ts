@@ -121,3 +121,31 @@ test("t-m8: summarize + renderDashboard are non-vacuous and reflect the series",
   assert.match(md, /accruing: 3\/8/); // honest about the temporal requirement
   assert.match(md, /catch rate/);
 });
+
+// --- mutation-hardening: pin exact arithmetic + each regression condition + the render state ---
+test("t-m10: exact catchRate / corpusGrowth / discoverySlope pin the arithmetic", () => {
+  assert.equal(catchRate([rec(1, { caught: 90, slips: 10 })]), 0.9); // 90/(90+10)
+  assert.equal(corpusGrowth([rec(1, { corpus: 40 }), rec(2, { corpus: 47 })]), 7); // last-first
+  assert.equal(corpusGrowth([rec(1)]), 0); // <2 runs → 0 (kills the length guard flip)
+  // slips [0,1,2] over index [0,1,2] → least-squares slope is exactly 1
+  assert.equal(
+    discoverySlope([rec(1, { slips: 0 }), rec(2, { slips: 1 }), rec(3, { slips: 2 })]),
+    1
+  );
+});
+
+test("t-m11: d3Regressions flags EACH condition; d3Verdict slope boundary is inclusive at 0", () => {
+  assert.match(
+    d3Regressions([rec(1, { slips: 0 }), rec(2, { slips: 1 }), rec(3, { slips: 3 })]).join(";"),
+    /discovery slope/ // rising slope (>0) must be flagged
+  );
+  assert.match(d3Regressions([rec(1, { caught: 90, slips: 10 })]).join(";"), /catch rate/);
+  assert.match(d3Regressions([rec(1), rec(2, { slips: 1 })]).join(";"), /MTTC/); // ∞ open bypass
+  const flat8 = Array.from({ length: 8 }, (_, i) => rec(i + 1, { corpus: 40 + i }));
+  assert.equal(d3Verdict(flat8, 8).pass, true); // slope===0 passes (slope<=0 inclusive at 0)
+});
+
+test("t-m12: renderDashboard shows the exact MTTC / open-bypass state", () => {
+  assert.match(renderDashboard([rec(1), rec(2, { slips: 1 })], 8), /∞ \(open bypass!\)/); // MTTC null
+  assert.match(renderDashboard([rec(1), rec(2)], 8), /MTTC \(runs\) \| 0/); // MTTC 0
+});

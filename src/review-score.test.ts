@@ -104,3 +104,19 @@ test("t-cs9: a verdict matching no case is surfaced as unmatched (stale corpus)"
   assert.deepEqual(s.unmatchedVerdicts, ["ghost"]);
   assert.match(s.reasons.join(";"), /match no case/);
 });
+
+test("t-cs10: boundary reasons + exact scored/missed counts (mutation-hardening)", () => {
+  const cases = corpus(20, 8); // seeded=20=minSeeded default, all caught
+  const s = score(cases, perfect(cases));
+  assert.equal(s.scored, 28); // 20+8 have verdicts — kills the `scored` -/+ flip
+  assert.ok(!s.reasons.some((r) => /corpus too small/.test(r))); // seeded≥minSeeded → no size reason
+  assert.ok(!s.reasons.some((r) => /catch rate/.test(r))); // 100% caught → no catch-rate reason
+  const miss = perfect(cases).map((x) => (x.id === "b0" ? { ...x, flaggedBuggy: false } : x));
+  assert.match(score(cases, miss).reasons.join(";"), /\(1 missed\)/); // exact seeded-caught count
+  // unscored > 0 so `scored = total − unscored` is distinguishable from `total + unscored`.
+  const partial = score(
+    cases,
+    perfect(cases).filter((v) => v.id !== "b3")
+  );
+  assert.equal(partial.scored, 27); // 28 cases − 1 unscored
+});
