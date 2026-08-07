@@ -1,0 +1,71 @@
+name: hawedit2
+# Audit finding #5: the repository's CI built the host Node project and ran *its* verify.sh.
+# Nothing ever ran hawedit2's gate, so every DONE mark rested on a single local run on the one
+# machine with no independent check. This is that independent check.
+#
+# NOTE: adding the workflow does not make it *required*. Marking `gate` a required status check
+# on the protected branch is a repository setting only the owner can change.
+on:
+  pull_request:
+    paths: ["hawedit2/**", ".github/workflows/hawedit2.yml"]
+  push:
+    branches: [main]
+    paths: ["hawedit2/**", ".github/workflows/hawedit2.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: hawedit2
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"   # pyproject requires-python = ">=3.11"
+
+      - name: install
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e '.[dev]'
+
+      # §4.3.6's golden render is a pixel comparison, so it needs the *pinned* build the
+      # reference was rendered from — Ubuntu's packaged ffmpeg is a different libass and would
+      # fail on rendering differences that are not regressions. fetch-ffmpeg.sh pins the URL.
+      #
+      # This step is required, not best-effort: `skipif(find_ffmpeg() is None)` means a failed
+      # fetch would silently retire Kurdish invariant #4 from CI, which is the same class of
+      # quiet green the rest of this audit is about.
+      - name: fetch the pinned ffmpeg (libass + HarfBuzz + FriBidi)
+        run: bash scripts/fetch-ffmpeg.sh
+
+      # Spelled from the repository root on purpose: `hawedit2/scripts/verify.sh` is the string
+      # tests/test_gate.py greps the workflows for, so CI coverage of the gate is itself under
+      # test. verify.sh cd's to its own directory, so the path it is invoked by is immaterial.
+      - name: gate
+        working-directory: .
+        run: bash hawedit2/scripts/verify.sh
+
+      - name: the golden render must have run, not skipped
+        run: |
+          test -x .ffmpeg/ffmpeg
+          .venv/bin/python -m pytest tests/test_captions.py -q \
+            -k "golden_reference or simple_shaping" --no-header -rs \
+            | tee /tmp/golden.txt
+          if grep -q "skipped" /tmp/golden.txt; then
+            echo "REFUSED: the §4.3 golden render skipped in CI — invariant #4 unverified" >&2
+            exit 1
+          fi
+
+      - name: the gate must have left fresh test evidence
+        run: .venv/bin/python -m hawedit2.gate .gate/last-test-run.xml scripts/test-count.floor
+
+      - name: the test-count floor must not have been ratcheted by this run
+        # The floor is committed. If the gate raised it here, the suite grew without the floor
+        # being updated in the same commit — the evidence and the claim are out of step.
+        run: git diff --exit-code -- scripts/test-count.floor
