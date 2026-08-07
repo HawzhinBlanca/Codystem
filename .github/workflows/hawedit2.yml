@@ -32,7 +32,10 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -e '.[dev]'
+          # CPU wheels: §6 puts Stage 0 (ffmpeg, scene detect, VAD) on CPU by design, and the
+          # CUDA build of torch is ~2 GB of runner disk for kernels nothing here calls.
+          .venv/bin/pip install --extra-index-url https://download.pytorch.org/whl/cpu \
+            -e '.[dev,media]'
 
       # §4.3.6's golden render is a pixel comparison, so it needs the *pinned* build the
       # reference was rendered from — Ubuntu's packaged ffmpeg is a different libass and would
@@ -59,6 +62,18 @@ jobs:
             | tee /tmp/golden.txt
           if grep -q "skipped" /tmp/golden.txt; then
             echo "REFUSED: the §4.3 golden render skipped in CI — invariant #4 unverified" >&2
+            exit 1
+          fi
+
+      # Same reasoning as the golden render: the §3 Stage 0 tests are guarded by
+      # `skipif(media stack absent)`, so a botched install would retire real-media coverage
+      # of ffmpeg, PySceneDetect and Silero VAD without turning CI red.
+      - name: Stage 0 must have run against real media, not skipped
+        run: |
+          .venv/bin/python -m pytest tests/test_ingest.py -q --no-header -rs \
+            | tee /tmp/ingest.txt
+          if grep -q "skipped" /tmp/ingest.txt; then
+            echo "REFUSED: §3 Stage 0 tests skipped in CI — the media stack is not installed" >&2
             exit 1
           fi
 
